@@ -1,0 +1,22 @@
+{
+  "jev": {
+    "api_key": "PUT-YOUR-TYPESAFE-API-KEY-HERE",
+    "base_url": "https://api.typesafe.ai/v1",
+    "model": "jev-latest"
+  },
+  "openai": {
+    "api_key": "PUT-YOUR-OPENAI-API-KEY-HERE",
+    "base_url": "https://api.openai.com/v1",
+    "model": "gpt-6-astra"
+  },
+  "mock_when_missing_keys": true,
+  "server": {
+    "host": "127.0.0.1",
+    "port": 8642
+  },
+  "logging": {
+    "console_level": "INFO",
+    "file_level": "DEBUG",
+    "file": "data/closeloop.log"
+  }
+}

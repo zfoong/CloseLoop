@@ -1,0 +1,118 @@
+{
+  "task": {
+    "kind": "customer support message handling: given one customer message, produce a support reply",
+    "sample_inputs": [
+      "I was charged twice for order #4415 and I need this fixed ASAP.",
+      "My package says delivered but nothing arrived at my door.",
+      "The shoes I received are size 9 but I ordered size 11.",
+      "Why is there a $14.99 subscription fee on my invoice? I never signed up for anything.",
+      "My order #7781 has been stuck on 'processing' for two weeks now.",
+      "The blender arrived with a cracked jar. I want a replacement, not a refund.",
+      "You sent me the blue jacket instead of the black one I ordered.",
+      "I returned my headphones three weeks ago and still haven't received my refund.",
+      "The tracking number you emailed me doesn't work on the carrier's website.",
+      "I need to change the delivery address for order #2093 before it ships.",
+      "My discount code SAVE20 was not applied at checkout, can you adjust the charge?",
+      "The coffee maker stopped working after four days. What are my options?"
+    ]
+  },
+  "entry": "triage",
+  "nodes": {
+    "triage": {
+      "kind": "jev",
+      "questions": {
+        "department": {
+          "type": "choice",
+          "instructions": "Which team should handle this customer message?",
+          "criteria": {
+            "returns": "Exchanges, refunds, wrong or damaged items",
+            "shipping": "Delivery status, delays, lost packages",
+            "billing": "Charges, invoices, payment problems",
+            "other": "Anything that does not fit the other teams"
+          }
+        },
+        "urgency": {
+          "type": "score",
+          "instructions": "How urgent is this message?",
+          "criteria": [
+            "No time pressure; routine question",
+            "Time-sensitive; customer expects action soon",
+            "Critical; customer is blocked or repeatedly charged"
+          ]
+        },
+        "is_actionable": {
+          "type": "noul",
+          "instructions": "The message contains a concrete, addressable request or problem"
+        }
+      },
+      "gates": [
+        { "question": "department", "min_confidence": 0.55, "escalate_to": "s2_full" }
+      ],
+      "route": {
+        "on": "department",
+        "branches": {
+          "returns": "draft",
+          "shipping": "draft",
+          "billing": "draft"
+        },
+        "default": "s2_full"
+      }
+    },
+    "draft": {
+      "kind": "llm",
+      "system": "You are a concise, empathetic customer support agent. Reply directly to the customer. Do not invent order details you were not given.",
+      "prompt": "Customer message:\n{input}\n\nWrite a short support reply that acknowledges the issue and states the concrete next step.",
+      "output_key": "draft",
+      "next": "validate"
+    },
+    "validate": {
+      "kind": "jev",
+      "questions": {
+        "addresses_issue": {
+          "type": "noul",
+          "instructions": "The `draft` directly addresses the problem described in `task_input`",
+          "criteria": {
+            "true": "The reply engages with the customer's actual issue and states a next step",
+            "false": "The reply is generic, off-topic, or ignores the stated problem"
+          }
+        },
+        "is_professional": {
+          "type": "noul",
+          "instructions": "The `draft` is polite and professional in tone"
+        }
+      },
+      "route": {
+        "on": "addresses_issue",
+        "noul_threshold": 0.5,
+        "if_true": "finalize",
+        "if_false": "s2_full"
+      }
+    },
+    "s2_full": {
+      "kind": "llm",
+      "system": "You are a senior customer support specialist (System 2). Handle this case end to end with careful reasoning. Reply directly to the customer.",
+      "prompt": "Customer message:\n{input}\n\nHandle this case fully: acknowledge, resolve or state the exact next step, and keep it concise.",
+      "output_key": "draft",
+      "next": "finalize"
+    },
+    "finalize": {
+      "kind": "code",
+      "source": "def run(ctx):\n    draft = ctx['vars'].get('draft', '')\n    ctx['result'] = draft.strip()\n",
+      "next": null
+    }
+  },
+  "evaluation": {
+    "code": "def evaluate(task_input, result):\n    ok = isinstance(result, str) and len(result.strip()) >= 40\n    notes = 'reply present and substantive' if ok else 'reply missing or too short'\n    return {'passed': ok, 'score': 1.0 if ok else 0.0, 'notes': notes}\n",
+    "s1_battery": {
+      "reply_addresses_issue": {
+        "type": "noul",
+        "instructions": "The `result` reply directly addresses the problem described in `task_input`"
+      },
+      "reply_professional": {
+        "type": "noul",
+        "instructions": "The `result` reply is polite and professional"
+      }
+    },
+    "s1_pass_threshold": 0.6
+  }
+}

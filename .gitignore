@@ -1,0 +1,18 @@
+# Secrets — never commit real keys
+config.json
+
+# Runtime data (runs, tree versions)
+data/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Node (TypeScript compiler for code-node type checking)
+node_modules/
+
+# Local docs — kept out of version control
+CLAUDE.md
+REQUIREMENT.md
+RESEARCH.md

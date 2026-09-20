@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CloseLoop</title>
+<style>
+  :root {
+    --page: #e9ebef; --card: #ffffff; --canvas: #fbfbfc; --ink: #1c2129; --dim: #6b7280; --faint: #9aa1ad;
+    --line: #e7e9ee; --line2: #dfe2e8;
+    --accent: #4f6bed; --s1: #3b82f6; --s2: #8b5cf6; --code: #10b981; --ok: #10b981; --warn: #f59e0b; --bad: #ef4444;
+    --shadow: 0 1px 2px rgba(20,25,35,.04), 0 4px 16px rgba(20,25,35,.06);
+    --shadow2: 0 6px 24px rgba(20,25,35,.10);
+    font-size: 14px;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body { background: var(--page); color: var(--ink); font-family: "Inter", -apple-system, "Segoe UI", system-ui, sans-serif;
+         -webkit-font-smoothing: antialiased; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* ---------- header ---------- */
+  header { display: flex; align-items: center; gap: 12px; padding: 12px 22px; background: var(--card);
+           border-bottom: 1px solid var(--line); flex: 0 0 auto; }
+  .brand { font-size: 1.08rem; font-weight: 700; letter-spacing: -.01em; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+  .brand .logo { color: var(--accent); font-size: 1.25rem; }
+  .spacer { flex: 1; }
+  select { background: var(--card); color: var(--ink); border: 1px solid var(--line2); border-radius: 999px; padding: 8px 16px; font: inherit; font-weight: 500; max-width: 230px; cursor: pointer; }
+  select:hover { border-color: #cdd2da; }
+  .status { display: inline-flex; align-items: center; gap: 7px; font-size: .76rem; color: var(--dim); padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--faint); }
+  .dot.live { background: var(--ok); box-shadow: 0 0 0 3px rgba(16,185,129,.15); }
+  .dot.mock { background: var(--warn); box-shadow: 0 0 0 3px rgba(245,158,11,.15); }
+
+  /* ---------- buttons ---------- */
+  button { border: 0; font: inherit; cursor: pointer; border-radius: 999px; transition: all .13s ease; font-weight: 600; }
+  .btn-primary { background: var(--ink); color: #fff; padding: 11px 18px; font-size: .92rem; box-shadow: var(--shadow); }
+  .btn-primary:hover:not(:disabled) { background: #2c333f; transform: translateY(-1px); box-shadow: var(--shadow2); }
+  .btn-ghost { background: var(--card); color: var(--ink); border: 1px solid var(--line2); padding: 9px 15px; font-size: .86rem; font-weight: 500; }
+  .btn-ghost:hover:not(:disabled) { background: #f6f7f9; border-color: #cdd2da; }
+  .btn-sm { padding: 7px 13px; font-size: .82rem; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  .spin { display: inline-block; width: 13px; height: 13px; border: 2px solid rgba(255,255,255,.35); border-top-color: #fff; border-radius: 50%; animation: sp .7s linear infinite; vertical-align: -2px; }
+  .spin.dark { border-color: rgba(28,33,41,.2); border-top-color: var(--ink); }
+  @keyframes sp { to { transform: rotate(360deg); } }
+
+  /* ---------- layout ---------- */
+  .app { flex: 1 1 auto; display: grid; grid-template-columns: 420px minmax(0,1fr) 384px; gap: 16px; padding: 16px; min-height: 0; }
+  @media (max-width: 1180px) { .app { grid-template-columns: 380px minmax(0,1fr); } .rail.right { display: none; } }
+  .rail { display: flex; flex-direction: column; gap: 16px; min-height: 0; overflow-y: auto; padding-right: 2px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 18px; box-shadow: var(--shadow); }
+  .card h3 { font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; color: var(--faint); font-weight: 700; margin-bottom: 12px; }
+  .lead { font-size: .8rem; color: var(--dim); line-height: 1.55; margin-bottom: 12px; }
+
+  textarea, input[type=text] { width: 100%; background: #fcfcfd; color: var(--ink); border: 1px solid var(--line2); border-radius: 12px; padding: 12px; font: inherit; resize: vertical; }
+  textarea { min-height: 120px; font-size: .84rem; line-height: 1.55; }
+  textarea:focus, input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(79,107,237,.12); }
+  input[type=number] { width: 56px; background: #fcfcfd; color: var(--ink); border: 1px solid var(--line2); border-radius: 10px; padding: 8px; font: inherit; text-align: center; }
+  .field-row { display: flex; gap: 9px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+  .hint { font-size: .76rem; color: var(--faint); line-height: 1.5; }
+
+  /* ---------- canvas + stat row ---------- */
+  .canvas-wrap { display: flex; flex-direction: column; gap: 14px; min-width: 0; min-height: 0; }
+  .statrow { display: flex; gap: 10px; align-items: stretch; flex-wrap: wrap; }
+  .stat { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 2px; min-width: 104px; }
+  .stat .v { font-size: 1.5rem; font-weight: 800; letter-spacing: -.02em; line-height: 1; }
+  .stat .l { font-size: .68rem; color: var(--faint); text-transform: uppercase; letter-spacing: .05em; font-weight: 600; }
+  .stat.wide { flex: 1; min-width: 180px; flex-direction: row; align-items: center; justify-content: space-between; gap: 14px; }
+  .stat.wide .txt { display: flex; flex-direction: column; gap: 2px; }
+
+  .canvas { position: relative; flex: 1 1 auto; min-height: 0; background: var(--canvas);
+            border: 1px solid var(--line); border-radius: 18px; overflow: hidden; box-shadow: var(--shadow); }
+  .canvas svg { display: block; width: 100%; height: 100%; cursor: grab; }
+  .canvas svg.grabbing { cursor: grabbing; }
+  .zoomctl { position: absolute; right: 16px; bottom: 16px; display: flex; flex-direction: column; gap: 8px; }
+  .zoomctl button { width: 38px; height: 38px; background: var(--card); color: var(--ink); border: 1px solid var(--line2); box-shadow: var(--shadow); font-size: 1.1rem; display: flex; align-items: center; justify-content: center; }
+  .zoomctl button:hover { background: #f6f7f9; }
+  .zoomctl button.fit { font-size: .62rem; font-weight: 700; letter-spacing: .04em; }
+  .canvas-hint { position: absolute; left: 16px; bottom: 16px; font-size: .72rem; color: var(--faint); pointer-events: none; background: rgba(255,255,255,.7); padding: 4px 10px; border-radius: 8px; }
+  .legend { position: absolute; left: 16px; top: 16px; display: flex; gap: 14px; font-size: .72rem; color: var(--dim); background: rgba(255,255,255,.8); padding: 7px 12px; border-radius: 10px; border: 1px solid var(--line); }
+  .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 5px; vertical-align: 0; }
+  .verbadge { position: absolute; right: 16px; top: 16px; font-size: .72rem; color: var(--dim); background: rgba(255,255,255,.85); padding: 6px 11px; border: 1px solid var(--line); }
+  .verbadge.hist { color: #c77c0a; border-color: #f6d99a; background: #fff8ec; }
+
+  /* run pill on canvas */
+  .runpill { position: absolute; top: 16px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; border-radius: 999px; padding: 9px 18px; font-size: .82rem; font-weight: 500; box-shadow: var(--shadow2); display: flex; align-items: center; gap: 10px; max-width: 70%; }
+  .runpill[hidden] { display: none; }
+  .runpill .rbar { width: 90px; height: 5px; background: rgba(255,255,255,.25); border-radius: 3px; overflow: hidden; }
+  .runpill .rbar > i { display: block; height: 100%; width: 0; background: #fff; transition: width .25s; }
+  .runpill .rtxt { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* ---------- inspector ---------- */
+  .insp-empty { color: var(--faint); font-size: .82rem; line-height: 1.65; }
+  .insp-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+  .insp-title { font-size: 1.05rem; font-weight: 700; letter-spacing: -.01em; }
+  .chip { font-size: .64rem; text-transform: uppercase; letter-spacing: .04em; padding: 3px 9px; border-radius: 999px; font-weight: 700; }
+  .field { margin-top: 14px; }
+  .field > .lbl { font-size: .66rem; text-transform: uppercase; letter-spacing: .06em; color: var(--faint); font-weight: 700; margin-bottom: 6px; }
+  .box { background: #f7f8fa; border: 1px solid var(--line); border-radius: 11px; padding: 11px 13px; font-size: .82rem; line-height: 1.55; white-space: pre-wrap; word-break: break-word; }
+  .box.mono { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: .76rem; overflow-x: auto; }
+  .qcard { border: 1px solid var(--line); padding: 11px 13px; margin-top: 9px; background: #f7f8fa; }
+  .qcard .qsq { display: inline-block; width: 9px; height: 9px; background: var(--s1); margin-right: 8px; vertical-align: 1px; }
+  .qcard .qname { font-weight: 700; font-size: .86rem; }
+  .qcard .qtype { font-size: .64rem; color: var(--faint); text-transform: uppercase; letter-spacing: .04em; margin-left: 6px; }
+  .kv { font-size: .8rem; color: var(--dim); margin-top: 5px; line-height: 1.5; }
+  .runsec { border-top: 1px dashed var(--line2); margin-top: 16px; padding-top: 12px; }
+  .runsec .lbl { display: flex; align-items: center; gap: 6px; }
+  details.adv { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 12px; }
+  details.adv summary { cursor: pointer; font-size: .74rem; color: var(--dim); font-weight: 600; user-select: none; list-style: none; }
+  details.adv summary::before { content: '▸ '; color: var(--faint); }
+  details.adv[open] summary::before { content: '▾ '; }
+  details.adv pre { background: #f7f8fa; border: 1px solid var(--line); border-radius: 10px; padding: 11px; overflow-x: auto; font-size: .72rem; margin-top: 9px; white-space: pre-wrap; word-break: break-word; }
+
+  /* ---------- history ---------- */
+  .backbtn { background: var(--card); border: 1px solid var(--line2); color: var(--ink); font-size: .72rem; font-weight: 600; text-transform: none; letter-spacing: 0; padding: 4px 10px; margin-right: 10px; cursor: pointer; vertical-align: 1px; }
+  .backbtn:hover { background: #f6f7f9; border-color: #cdd2da; }
+  .crumb-link { color: var(--accent); cursor: pointer; }
+  .crumb-link:hover { text-decoration: underline; }
+  .crumb-sep { color: var(--faint); margin: 0 2px; }
+  .runlist { display: flex; flex-direction: column; gap: 2px; }
+  .runitem { display: grid; grid-template-columns: 26px 1fr auto; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 11px; cursor: pointer; }
+  .runitem:hover { background: #f6f7f9; }
+  .runitem.sel { background: #eef1fb; }
+  .runitem .num { font-size: .72rem; color: var(--faint); font-weight: 600; }
+  .runitem .txt { font-size: .8rem; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .runitem .tags { display: flex; gap: 5px; align-items: center; }
+  .pill { padding: 2px 9px; border-radius: 999px; font-size: .66rem; font-weight: 700; white-space: nowrap; }
+  .pill.ok { background: rgba(16,185,129,.13); color: #0d9668; }
+  .pill.bad { background: rgba(239,68,68,.12); color: #dc3d3d; }
+  .pill.warn { background: rgba(245,158,11,.14); color: #c77c0a; }
+  .pill.dim { background: #f0f1f4; color: var(--faint); }
+  .emptyrow { color: var(--faint); font-size: .82rem; padding: 20px 4px; text-align: center; }
+
+  .loopdetail { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 14px; }
+  .tracechips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; align-items: center; }
+  .tchip { font-size: .72rem; padding: 5px 10px; border-radius: 8px; border: 1px solid var(--line); background: #f7f8fa; display: inline-flex; align-items: center; gap: 6px; }
+  .tchip .d { width: 7px; height: 7px; border-radius: 2px; }
+  .tarrow { color: var(--faint); }
+
+  /* ---------- modal ---------- */
+  .overlay { position: fixed; inset: 0; background: rgba(28,33,41,.35); backdrop-filter: blur(2px); display: flex; align-items: center; justify-content: center; z-index: 50; }
+  .overlay[hidden] { display: none; }
+  .modal { background: var(--card); border-radius: 20px; padding: 26px; width: min(560px, 94vw); max-height: 92vh; overflow-y: auto; box-shadow: var(--shadow2); }
+  .modal h2 { font-size: 1.2rem; letter-spacing: -.01em; }
+  .modal label { display: block; font-size: .82rem; font-weight: 600; margin: 16px 0 6px; }
+  .modal label .opt { color: var(--faint); font-weight: 400; }
+  .modal textarea { min-height: 0; }
+
+  ::-webkit-scrollbar { width: 9px; height: 9px; }
+  ::-webkit-scrollbar-thumb { background: #d3d7de; }
+  ::-webkit-scrollbar-thumb:hover { background: #c3c8d1; }
+
+  /* sharp corners everywhere */
+  *, *::before, *::after { border-radius: 0 !important; }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><span class="logo">&#8635;</span> CloseLoop</div>
+  <select id="taskSel" onchange="switchTask(this.value)" title="Switch task"></select>
+  <button class="btn-ghost btn-sm" onclick="openWizard()">+ New task</button>
+  <div class="spacer"></div>
+  <span class="status" id="s1dot"><span class="dot" id="s1dotc"></span> S1 Jev</span>
+  <span class="status" id="s2dot"><span class="dot" id="s2dotc"></span> S2 LLM</span>
+</header>
+
+<div class="app">
+  <!-- LEFT rail: controls -->
+  <aside class="rail left">
+    <div class="card">
+      <h3>Feed task inputs</h3>
+      <p class="lead">Each line is one loop — a new instance of the same kind of task. The system runs it, scores it, and improves itself.</p>
+      <textarea id="input" spellcheck="false" data-gramm="false" data-gramm_editor="false" data-enable-grammarly="false"
+        placeholder="One task input per line…"></textarea>
+      <div class="field-row">
+        <button class="btn-primary" id="runBtn" onclick="runBatch()" style="flex:1">&#9654;&nbsp; Run inputs</button>
+      </div>
+      <div class="field-row">
+        <button class="btn-ghost" id="streamBtn" onclick="runStream()" style="flex:1">Auto-generate &amp; run</button>
+        <input type="number" id="streamN" min="1" max="20" value="5" title="How many to generate">
+      </div>
+      <div class="field-row">
+        <button class="btn-ghost btn-sm" id="shapeBtn" onclick="forceShape()" style="flex:1" title="Ask S2 to review and improve the workflow now">Improve workflow now</button>
+      </div>
+      <div class="hint" id="lastShaping" style="margin-top:12px"></div>
+    </div>
+    <div class="card">
+      <h3 id="historyCrumb">Loop history</h3>
+      <div id="historyBody"></div>
+    </div>
+  </aside>
+
+  <!-- CENTER: canvas hero -->
+  <section class="canvas-wrap">
+    <div class="statrow">
+      <div class="stat"><div class="v" id="mRuns">0</div><div class="l">loops run</div></div>
+      <div class="stat wide">
+        <div class="txt"><div class="v" id="mPass">–</div><div class="l">pass rate</div></div>
+        <svg id="spark" width="128" height="38" aria-hidden="true"></svg>
+      </div>
+      <div class="stat"><div class="v" id="mEsc">–</div><div class="l">used S2</div></div>
+      <div class="stat"><div class="v" id="mShape">0</div><div class="l">self-edits</div></div>
+    </div>
+    <div class="canvas" id="gvp">
+      <div id="graph" style="height:100%"></div>
+      <div class="legend">
+        <span><i style="background:var(--s1)"></i>decision</span>
+        <span><i style="background:var(--s2)"></i>generate</span>
+        <span><i style="background:var(--code)"></i>code</span>
+      </div>
+      <div class="verbadge" id="verBadge"></div>
+      <div class="runpill" id="progWrap" hidden><span class="spin"></span><span class="rtxt" id="plabel"></span><span class="rbar"><i id="pbar"></i></span></div>
+      <div class="zoomctl">
+        <button id="orientBtn" onclick="toggleOrient()" title="Switch layout"></button>
+        <button onclick="zoomBy(0.8)" title="Zoom in">+</button>
+        <button onclick="zoomBy(1.25)" title="Zoom out">&minus;</button>
+        <button class="fit" onclick="fitGraph()" title="Fit to view"><svg width="17" height="17" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 5.5V2.5h3M14 5.5V2.5h-3M2 10.5v3h3M14 10.5v3h-3"/></svg></button>
+      </div>
+      <div class="canvas-hint">Drag to pan · scroll to zoom · click a node</div>
+    </div>
+  </section>
+
+  <!-- RIGHT rail: inspector -->
+  <aside class="rail right">
+    <div class="card">
+      <h3>Inspect a node</h3>
+      <div id="nodeDetail"><div class="insp-empty">Click any box in the graph to see what it does — the questions it asks, the prompt it runs, or the code it executes, plus what it produced on the last loop.</div></div>
+    </div>
+  </aside>
+</div>
+
+<!-- New-task wizard -->
+<div id="wizard" class="overlay" hidden>
+  <div class="modal">
+    <h2>Create a new task</h2>
+    <p class="hint" style="margin:8px 0 4px">Describe your task in plain language. CloseLoop designs the workflow, runs it, and improves it by itself.</p>
+    <label>Task name</label>
+    <input type="text" id="wName" spellcheck="false" placeholder="e.g. Email triage">
+    <label>1 &middot; What should the system do?</label>
+    <textarea id="wDesc" rows="3" spellcheck="false" placeholder="e.g. Read an incoming customer email and write a short, polite reply that answers the sender's question."></textarea>
+    <label>2 &middot; What does a good result look like?</label>
+    <textarea id="wOut" rows="2" spellcheck="false" placeholder="e.g. A reply under 120 words that addresses the question and ends with a clear next step."></textarea>
+    <label>3 &middot; How should results be judged? <span class="opt">(optional)</span></label>
+    <textarea id="wMetric" rows="2" spellcheck="false" placeholder="Leave empty to judge results against the task description."></textarea>
+    <label>Example inputs <span class="opt">(optional but recommended — one per line)</span></label>
+    <textarea id="wExamples" rows="3" spellcheck="false" placeholder="Hi, I was double charged this month, please help.&#10;How do I reset my password?"></textarea>
+    <div class="field-row" style="justify-content:flex-end; margin-top:18px">
+      <button class="btn-ghost" onclick="closeWizard()">Cancel</button>
+      <button class="btn-primary" id="wCreate" onclick="createTask()">Create task</button>
+    </div>
+    <div class="hint" id="wStatus" style="margin-top:12px"></div>
+  </div>
+</div>
+
+<script>
+let STATE = null, selectedRun = null, selectedNode = null;
+let currentTask = localStorage.getItem('closeloop.task') || '';
+let busy = false;
+let graphView = null, graphBounds = null, graphFitKey = null;
+let panning = false, panStart = null, didPan = false;
+let deepLinkDone = false;
+let shownTree = null, shownVersion = null, shownHistorical = false;
+const treeCache = {};
+let graphOrient = localStorage.getItem('closeloop.orient') || 'h';
+const ICON_ROWS = '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="1.5" y="6.25" width="3.5" height="3.5"/><rect x="6.25" y="6.25" width="3.5" height="3.5"/><rect x="11" y="6.25" width="3.5" height="3.5"/></svg>';
+const ICON_COLS = '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="6.25" y="1.5" width="3.5" height="3.5"/><rect x="6.25" y="6.25" width="3.5" height="3.5"/><rect x="6.25" y="11" width="3.5" height="3.5"/></svg>';
+
+const KIND_COLOR = { jev: '#3b82f6', llm: '#8b5cf6', code: '#10b981' };
+const KIND_TAG = { jev: 'decision', llm: 'generate', code: 'code' };
+
+/* ============================ data ============================ */
+async function refresh() {
+  const r = await fetch('/api/state?task=' + encodeURIComponent(currentTask));
+  STATE = await r.json();
+  if (STATE.task && STATE.task !== currentTask) { currentTask = STATE.task; localStorage.setItem('closeloop.task', currentTask); }
+  if (!deepLinkDone) {
+    const params = new URLSearchParams(location.search);
+    const q = params.get('inspect'); if (q) selectedNode = q;
+    const rn = params.get('run'); if (rn && STATE.runs && STATE.runs[+rn - 1]) selectedRun = STATE.runs[+rn - 1];
+    deepLinkDone = true;
+  }
+  await resolveShownTree();
+  renderTaskSelect();
+  render();
+}
+
+// Show the workflow AS IT WAS for the selected run (fetch that version if needed).
+async function resolveShownTree() {
+  const run = selectedRun;  // only an explicitly-selected run switches to its historical workflow
+  if (run && run.tree_version && STATE.version && run.tree_version !== STATE.version) {
+    const key = currentTask + ':' + run.tree_version;
+    if (!(key in treeCache)) {
+      try {
+        const r = await fetch(`/api/tree?task=${encodeURIComponent(currentTask)}&version=${encodeURIComponent(run.tree_version)}`);
+        treeCache[key] = (await r.json()).tree;
+      } catch (e) { treeCache[key] = null; }
+    }
+    if (treeCache[key]) { shownTree = treeCache[key]; shownVersion = run.tree_version; shownHistorical = true; return; }
+  }
+  shownTree = STATE.tree; shownVersion = STATE.version; shownHistorical = false;
+}
+
+async function selectRun(run) {
+  selectedRun = run;
+  await resolveShownTree();
+  render();
+}
+function renderTaskSelect() {
+  document.getElementById('taskSel').innerHTML = (STATE.tasks || []).map(t =>
+    `<option value="${esc(t.id)}" ${t.id === STATE.task ? 'selected' : ''}>${esc(t.name || t.id)}</option>`).join('');
+}
+function switchTask(id) {
+  currentTask = id; localStorage.setItem('closeloop.task', id);
+  selectedRun = null; selectedNode = null; graphFitKey = null;
+  refresh();
+}
+
+/* ============================ render ============================ */
+function statusDot(id, mock, fallback) {
+  document.getElementById(id + 'c').className = 'dot ' + (mock ? 'mock' : 'live');
+  document.getElementById(id).title = fallback || (mock ? 'Mock mode (no API key)' : 'Live');
+}
+function render() {
+  const s = STATE;
+  if (!s || !shownTree) { document.getElementById('graph').innerHTML = '<div style="padding:36px;color:var(--faint)">No task yet. Click “+ New task”.</div>'; return; }
+  const vb = document.getElementById('verBadge');
+  if (shownHistorical && selectedRun) { vb.className = 'verbadge hist'; vb.textContent = `viewing loop #${STATE.runs.indexOf(selectedRun) + 1}'s workflow · ${shownVersion}`; }
+  else { vb.className = 'verbadge'; vb.textContent = `current workflow · ${shownVersion || '—'}`; }
+  statusDot('s1dot', s.mode.jev_mock, s.mode.jev_fallback);
+  statusDot('s2dot', s.mode.openai_mock, s.mode.openai_fallback);
+  const m = s.metrics;
+  document.getElementById('mRuns').textContent = m.runs;
+  document.getElementById('mPass').textContent = m.pass_rate == null ? '–' : Math.round(m.pass_rate * 100) + '%';
+  document.getElementById('mEsc').textContent = m.escalation_rate == null ? '–' : Math.round(m.escalation_rate * 100) + '%';
+  document.getElementById('mShape').textContent = m.shaping_edits;
+  updateOrientBtn();
+  renderSpark();
+  renderGraph();
+  renderNodeInspector();
+  renderHistory();
+}
+
+function renderSpark() {
+  const el = document.getElementById('spark');
+  const runs = STATE.runs || [];
+  if (runs.length < 2) { el.innerHTML = ''; return; }
+  // cumulative pass rate after each loop -> convergence trend
+  let pass = 0; const pts = [];
+  runs.forEach((r, i) => { if (r.evaluation.passed) pass++; pts.push(pass / (i + 1)); });
+  const w = 128, h = 38, pad = 3, series = pts.slice(-40);
+  const step = series.length > 1 ? (w - pad * 2) / (series.length - 1) : 0;
+  const y = v => h - pad - v * (h - pad * 2);
+  const d = series.map((v, i) => `${pad + i * step},${y(v)}`).join(' ');
+  const last = series[series.length - 1];
+  const col = last >= 0.8 ? '#10b981' : last >= 0.5 ? '#f59e0b' : '#ef4444';
+  el.innerHTML =
+    `<polyline points="${pad},${y(series[0])} ${d}" fill="none" stroke="${col}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>` +
+    `<circle cx="${pad + (series.length - 1) * step}" cy="${y(last)}" r="2.6" fill="${col}"/>`;
+}
+
+function activeRun() {
+  return selectedRun || (STATE.runs.length ? STATE.runs[STATE.runs.length - 1] : null);
+}
+function runPathInfo() {
+  const run = activeRun();
+  if (!run) return { nodes: new Set(), edges: new Set(), failNode: null, passed: null, hasRun: false, lastNode: null };
+  // only highlight when the run actually ran on the workflow currently shown
+  if (run.tree_version && shownVersion && run.tree_version !== shownVersion)
+    return { nodes: new Set(), edges: new Set(), failNode: null, passed: null, hasRun: false, lastNode: null };
+  const ids = run.trace.map(t => t.node);
+  const nodes = new Set(ids), edges = new Set();
+  for (let i = 1; i < ids.length; i++) edges.add(ids[i - 1] + '>' + ids[i]);
+  const failEntry = run.trace.find(t => t.error);
+  const lastNode = ids.length ? ids[ids.length - 1] : null;
+  // the loop always continues into the outer stations (result → evaluate → improve)
+  if (lastNode) { edges.add(lastNode + '>_result'); edges.add('_result>_eval'); edges.add('_eval>_shape'); }
+  return { nodes, edges, failNode: failEntry ? failEntry.node : null, passed: run.evaluation.passed, hasRun: true, lastNode };
+}
+function niceName(id) {
+  const s = id.replace(/^n\d+[_-]?/, '').replace(/[_-]+/g, ' ').trim();
+  return (s.charAt(0).toUpperCase() + s.slice(1)) || id;
+}
+
+/* ---------------------------- graph ---------------------------- */
+function treeEdges(tree) {
+  const edges = [];
+  for (const [id, node] of Object.entries(tree.nodes)) {
+    const r = node.route || {};
+    if (r.branches) for (const [opt, tgt] of Object.entries(r.branches)) edges.push({ from: id, to: tgt, label: opt });
+    if (r.default) edges.push({ from: id, to: r.default, label: 'else' });
+    if (r.if_true) edges.push({ from: id, to: r.if_true, label: 'yes' });
+    if (r.if_false) edges.push({ from: id, to: r.if_false, label: 'no' });
+    (node.gates || []).forEach(g => edges.push({ from: id, to: g.escalate_to, label: 'unsure', gate: true }));
+    if (node.next) edges.push({ from: id, to: node.next, label: '' });
+  }
+  const seen = new Map();
+  for (const e of edges) {
+    const k = e.from + '>' + e.to + (e.gate ? ':g' : '');
+    if (seen.has(k)) { const p = seen.get(k); p.label = p.label && e.label ? p.label + '/' + e.label : (p.label || e.label); }
+    else seen.set(k, e);
+  }
+  return [...seen.values()];
+}
+
+function renderGraph() {
+  const tree = shownTree, el = document.getElementById('graph');
+  const edges = treeEdges(tree), pi = runPathInfo();
+
+  // BFS depth from entry
+  const level = { [tree.entry]: 0 };
+  let frontier = [tree.entry];
+  while (frontier.length) {
+    const next = [];
+    for (const id of frontier) for (const e of edges) if (e.from === id && !(e.to in level)) { level[e.to] = level[id] + 1; next.push(e.to); }
+    frontier = next;
+  }
+  let maxL = 0;
+  for (const id of Object.keys(tree.nodes)) { if (!(id in level)) level[id] = maxL + 1; maxL = Math.max(maxL, level[id]); }
+
+  // layout — orientation-aware (h = left→right, v = top→bottom)
+  const H_MODE = graphOrient !== 'v';
+  const W = 168, H = 58;
+  const PRIMARY = H_MODE ? 250 : 148;   // spacing along the flow direction
+  const CROSS = H_MODE ? 92 : 212;      // spacing between siblings in a level
+  const X0 = H_MODE ? 40 : 70, Y0 = 40, LOOP = 46;
+  const groups = {};
+  for (const id of Object.keys(tree.nodes)) (groups[level[id]] = groups[level[id]] || []).push(id);
+  let maxCross = 1;
+  for (const ids of Object.values(groups)) maxCross = Math.max(maxCross, ids.length);
+  const crossExtent = maxCross * CROSS - (CROSS - (H_MODE ? H : W));
+  const pos = {};
+  for (const [L, ids] of Object.entries(groups)) {
+    const span = ids.length * CROSS - (CROSS - (H_MODE ? H : W));
+    const start = (H_MODE ? Y0 : X0) + (crossExtent - span) / 2;
+    ids.forEach((id, i) => pos[id] = H_MODE
+      ? { x: X0 + (+L) * PRIMARY, y: start + i * CROSS }
+      : { x: start + i * CROSS, y: Y0 + (+L) * PRIMARY });
+  }
+  // outer-loop stations continue along the flow direction
+  const stMeta = [
+    { id: '_result', label: 'Result', sub: 'the deliverable', color: '#94a3b8' },
+    { id: '_eval', label: 'Evaluate', sub: 'pass or fail', color: '#f59e0b' },
+    { id: '_shape', label: 'Improve', sub: 'edit or keep', color: '#8b5cf6' },
+  ];
+  const stations = stMeta.map((s, k) => {
+    const L = maxL + 1 + k;
+    return H_MODE
+      ? { ...s, x: X0 + L * PRIMARY, y: Y0 + (crossExtent - H) / 2 }
+      : { ...s, x: X0 + (crossExtent - W) / 2, y: Y0 + L * PRIMARY };
+  });
+  const lastL = maxL + 3;
+  // reserve a lane before the entry node for the Task input node
+  const OFF = PRIMARY;
+  for (const id in pos) { if (H_MODE) pos[id].x += OFF; else pos[id].y += OFF; }
+  stations.forEach(s => { if (H_MODE) s.x += OFF; else s.y += OFF; });
+  const entryP = pos[tree.entry];
+  const taskNode = { id: '_task', label: 'Task input', sub: 'a new instance each loop', color: '#94a3b8',
+    x: H_MODE ? entryP.x - PRIMARY : entryP.x, y: H_MODE ? entryP.y : entryP.y - PRIMARY };
+  const contentW = H_MODE ? X0 + lastL * PRIMARY + W + 40 + OFF : X0 + crossExtent + 40;
+  const contentH = H_MODE ? Y0 + crossExtent + LOOP + 16 : Y0 + lastL * PRIMARY + H + 40 + OFF;
+
+  let svg = `<svg id="gsvg" xmlns="http://www.w3.org/2000/svg" font-family="Inter, Segoe UI, system-ui" font-size="11" preserveAspectRatio="xMidYMid meet">`;
+  svg += `<defs>
+    <marker id="arr" markerWidth="7" markerHeight="7" refX="6.2" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 z" fill="#b6bcc6"/></marker>
+    <marker id="arrB" markerWidth="7" markerHeight="7" refX="6.2" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 z" fill="#3b82f6"/></marker>
+    <marker id="arrW" markerWidth="7" markerHeight="7" refX="6.2" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 z" fill="#f59e0b"/></marker>
+    <marker id="arrA" markerWidth="7" markerHeight="7" refX="6.2" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 z" fill="#8b5cf6"/></marker>
+    <marker id="arrR" markerWidth="7" markerHeight="7" refX="6.2" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 z" fill="#ef4444"/></marker>
+    <pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="1.4" cy="1.4" r="1.4" fill="#d0d5dd"/></pattern>
+    <filter id="cshadow" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#1c2129" flood-opacity="0.10"/></filter>
+  </defs>`;
+  // dotted grid that pans/zooms together with the graph
+  svg += `<rect x="-6000" y="-6000" width="16000" height="16000" fill="url(#dots)"/>`;
+
+  function edgePath(a, b, warn, onp, fail) {
+    const stroke = fail ? '#ef4444' : (onp ? '#3b82f6' : (warn ? '#f59e0b' : '#cdd2db'));
+    const w = (onp || fail) ? 2.2 : 1.5;
+    const dash = (warn && !onp && !fail) ? 'stroke-dasharray="5,4"' : '';
+    const marker = `marker-end="url(#${fail ? 'arrR' : (onp ? 'arrB' : (warn ? 'arrW' : 'arr'))})"`;
+    let d;
+    if (H_MODE) {
+      const x1 = a.x + W, y1 = a.y + H / 2, x2 = b.x, y2 = b.y + H / 2, dx = Math.max(30, (x2 - x1) / 2);
+      d = `M${x1},${y1} C${x1 + dx},${y1} ${x2 - dx},${y2} ${x2},${y2}`;
+    } else {
+      const x1 = a.x + W / 2, y1 = a.y + H, x2 = b.x + W / 2, y2 = b.y, dy = Math.max(24, (y2 - y1) / 2);
+      d = `M${x1},${y1} C${x1},${y1 + dy} ${x2},${y2 - dy} ${x2},${y2}`;
+    }
+    return `<path d="${d}" fill="none" stroke="${stroke}" stroke-width="${w}" ${dash} ${marker}/>`;
+  }
+  function edgeLabel(a, b, text, warn) {
+    if (!text) return '';
+    const x = H_MODE ? (a.x + W + b.x) / 2 : (a.x + b.x + W) / 2;
+    const y = H_MODE ? (a.y + b.y + H) / 2 - 6 : (a.y + H + b.y) / 2 - 1;
+    const w = text.length * 6.2 + 12;
+    return `<rect x="${x - w / 2}" y="${y - 10}" width="${w}" height="16" fill="#ffffff" stroke="${warn ? '#f6d99a' : '#e7e9ee'}"/>` +
+           `<text x="${x}" y="${y + 1.5}" fill="${warn ? '#c77c0a' : '#7b8494'}" text-anchor="middle" font-size="10">${esc(text)}</text>`;
+  }
+  function card(x, y, title, sub, color, sel, onp, rounded, status) {
+    let stroke = '#e7e9ee', fill = '#ffffff', sw = 1.2;
+    if (status === 'fail') { stroke = '#ef4444'; fill = '#fef2f2'; sw = 2.2; }
+    else if (status === 'pass') { stroke = '#10b981'; fill = '#f0fdf8'; sw = 2.2; }
+    else if (sel) { stroke = '#f59e0b'; sw = 2; }
+    else if (onp) { stroke = '#3b82f6'; fill = '#f5f9ff'; sw = 2; }
+    const badge = status === 'fail'
+      ? `<text x="${x + W - 13}" y="${y + 19}" fill="#ef4444" font-weight="800" font-size="14" text-anchor="middle">✗</text>`
+      : (status === 'pass' ? `<text x="${x + W - 13}" y="${y + 19}" fill="#10b981" font-weight="800" font-size="13" text-anchor="middle">✓</text>` : '');
+    return `<rect x="${x}" y="${y}" width="${W}" height="${H}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" filter="url(#cshadow)"/>
+      <rect x="${x + 16}" y="${y + H / 2 - 5}" width="10" height="10" fill="${color}"/>
+      <text x="${x + 34}" y="${y + H / 2 - 3}" fill="#1c2129" font-weight="700" font-size="12.5">${esc(trunc(title, 16))}</text>
+      <text x="${x + 34}" y="${y + H / 2 + 12}" fill="#9aa1ad" font-size="10">${esc(sub)}</text>${badge}`;
+  }
+
+  // Task input node feeding the entry
+  svg += edgePath(taskNode, entryP, false, pi.hasRun, false);
+  svg += `<g class="gnode" data-node="_task">` + card(taskNode.x, taskNode.y, taskNode.label, taskNode.sub, taskNode.color, selectedNode === '_task', pi.hasRun, true, null) + `</g>`;
+
+  // edges
+  for (const e of edges) {
+    const a = pos[e.from], b = pos[e.to]; if (!a || !b) continue;
+    const onp = pi.edges.has(e.from + '>' + e.to), fail = onp && e.to === pi.failNode;
+    svg += edgePath(a, b, !!e.gate, onp, fail);
+  }
+  for (const e of edges) { const a = pos[e.from], b = pos[e.to]; if (a && b) svg += edgeLabel(a, b, e.label, !!e.gate); }
+  const hasOut = new Set(edges.map(e => e.from));
+  for (const [id, p] of Object.entries(pos)) if (!hasOut.has(id)) svg += edgePath(p, stations[0], false, pi.edges.has(id + '>_result'), false);
+  // result -> evaluate -> improve (along the flow direction)
+  for (let i = 0; i < 2; i++) svg += edgePath(stations[i], stations[i + 1], false, pi.edges.has(stations[i].id + '>' + stations[i + 1].id), false);
+  // feedback loop: improve -> entry
+  const sh = stations[2];
+  if (H_MODE) {
+    const by = contentH - 14;
+    svg += `<path d="M${sh.x + W / 2},${sh.y + H} C${sh.x + W / 2},${by} ${entryP.x + W / 2},${by} ${entryP.x + W / 2},${entryP.y + H}" fill="none" stroke="#c4b5fd" stroke-width="1.6" stroke-dasharray="6,5" marker-end="url(#arrA)"/>`;
+    svg += `<text x="${(sh.x + entryP.x) / 2 + W / 2}" y="${by - 6}" fill="#8b5cf6" text-anchor="middle" font-size="10">improves the workflow &#8635;</text>`;
+  } else {
+    const lx = 24;
+    svg += `<path d="M${sh.x},${sh.y + H / 2} C${lx},${sh.y + H / 2} ${lx},${entryP.y + H / 2} ${entryP.x},${entryP.y + H / 2}" fill="none" stroke="#c4b5fd" stroke-width="1.6" stroke-dasharray="6,5" marker-end="url(#arrA)"/>`;
+    const my = (sh.y + entryP.y) / 2 + H / 2;
+    svg += `<text x="${lx + 5}" y="${my}" fill="#8b5cf6" text-anchor="middle" font-size="10" transform="rotate(-90 ${lx + 5} ${my})">improves the workflow &#8635;</text>`;
+  }
+
+  // nodes — mark the node where the run crashed in red
+  for (const [id, p] of Object.entries(pos)) {
+    const node = tree.nodes[id];
+    const status = id === pi.failNode ? 'fail' : null;
+    svg += `<g class="gnode" data-node="${esc(id)}">` + card(p.x, p.y, niceName(id), KIND_TAG[node.kind] + (tree.entry === id ? ' · start' : ''), KIND_COLOR[node.kind], selectedNode === id, pi.nodes.has(id), false, status) + `</g>`;
+  }
+  // stations — Evaluate turns green (pass) or red (fail) for the shown run
+  if (pi.hasRun) stations[1].sub = pi.passed ? '✓ passed' : '✗ failed';
+  for (const st of stations) {
+    const status = (st.id === '_eval' && pi.hasRun) ? (pi.passed ? 'pass' : 'fail') : null;
+    svg += `<g class="gnode" data-node="${st.id}">` + card(st.x, st.y, st.label, st.sub, st.color, selectedNode === st.id, pi.hasRun, true, status) + `</g>`;
+  }
+  svg += '</svg>';
+  el.innerHTML = svg;
+
+  graphBounds = { x: 0, y: 0, w: contentW, h: contentH };
+  const fitKey = currentTask + ':' + shownVersion + ':' + graphOrient;
+  if (graphFitKey !== fitKey || !graphView) { graphView = fitView(graphBounds); graphFitKey = fitKey; }
+  applyView();
+  attachGraphHandlers();
+}
+
+function toggleOrient() {
+  graphOrient = graphOrient === 'h' ? 'v' : 'h';
+  localStorage.setItem('closeloop.orient', graphOrient);
+  updateOrientBtn();
+  renderGraph();
+}
+function updateOrientBtn() {
+  const b = document.getElementById('orientBtn'); if (!b) return;
+  b.innerHTML = graphOrient === 'h' ? ICON_ROWS : ICON_COLS;
+  b.title = graphOrient === 'h' ? 'Layout: horizontal — click for vertical' : 'Layout: vertical — click for horizontal';
+}
+// Convert a screen point to SVG user coordinates via the live transform —
+// this accounts for the viewBox AND preserveAspectRatio letterbox margins,
+// so cursor-anchored zoom is exact.
+function clientToUser(svg, cx, cy) {
+  const ctm = svg.getScreenCTM();
+  if (!ctm) return null;
+  const pt = svg.createSVGPoint(); pt.x = cx; pt.y = cy;
+  const p = pt.matrixTransform(ctm.inverse());
+  return { x: p.x, y: p.y };
+}
+function fitView(b) { const pad = 30; return { x: b.x - pad, y: b.y - pad, w: b.w + pad * 2, h: b.h + pad * 2 }; }
+function applyView() { const svg = document.getElementById('gsvg'); if (svg && graphView) svg.setAttribute('viewBox', `${graphView.x} ${graphView.y} ${graphView.w} ${graphView.h}`); }
+function fitGraph() { if (graphBounds) { graphView = fitView(graphBounds); applyView(); } }
+function zoomBy(f) {
+  if (!graphView) return;
+  const cx = graphView.x + graphView.w / 2, cy = graphView.y + graphView.h / 2;
+  graphView = { w: graphView.w * f, h: graphView.h * f, x: cx - graphView.w * f / 2, y: cy - graphView.h * f / 2 };
+  applyView();
+}
+function attachGraphHandlers() {
+  const svg = document.getElementById('gsvg'); if (!svg) return;
+  svg.querySelectorAll('g.gnode').forEach(g => g.addEventListener('click', () => {
+    if (didPan) return;
+    const id = g.getAttribute('data-node');
+    selectedNode = (selectedNode === id) ? null : id;
+    renderGraph(); renderNodeInspector();
+  }));
+  svg.addEventListener('mousedown', e => { panning = true; didPan = false; panStart = { x: e.clientX, y: e.clientY }; svg.classList.add('grabbing'); });
+  svg.addEventListener('wheel', e => {
+    e.preventDefault();
+    if (!graphView) return;
+    const u = clientToUser(svg, e.clientX, e.clientY);   // exact point under the cursor
+    if (!u) return;
+    const f = e.deltaY > 0 ? 1.12 : 0.88;
+    // keep u anchored under the cursor while scaling the viewBox
+    graphView = { w: graphView.w * f, h: graphView.h * f, x: u.x - (u.x - graphView.x) * f, y: u.y - (u.y - graphView.y) * f };
+    applyView();
+  }, { passive: false });
+}
+window.addEventListener('mousemove', e => {
+  if (!panning || !graphView) return;
+  const svg = document.getElementById('gsvg'); if (!svg) return;
+  const rect = svg.getBoundingClientRect(), scale = Math.max(graphView.w / rect.width, graphView.h / rect.height);
+  const dx = (e.clientX - panStart.x) * scale, dy = (e.clientY - panStart.y) * scale;
+  if (Math.abs(e.clientX - panStart.x) + Math.abs(e.clientY - panStart.y) > 4) didPan = true;
+  graphView.x -= dx; graphView.y -= dy; panStart = { x: e.clientX, y: e.clientY }; applyView();
+});
+window.addEventListener('mouseup', () => { panning = false; const svg = document.getElementById('gsvg'); if (svg) svg.classList.remove('grabbing'); });
+
+/* ---------------------------- inspector ---------------------------- */
+function fmt(v) { return typeof v === 'string' ? v : JSON.stringify(v, null, 1); }
+function plainInstr(v) { return typeof v === 'string' ? v : (v && v.main_question ? v.main_question : fmt(v)); }
+function taskMeta() { return (STATE.tasks || []).find(t => t.id === STATE.task) || {}; }
+
+function renderNodeInspector() {
+  const el = document.getElementById('nodeDetail'), tree = shownTree;
+  if (!selectedNode) {
+    el.innerHTML = selectedRun
+      ? `<div class="insp-empty">Loop #${STATE.runs.indexOf(selectedRun) + 1} is selected. Click any box in the graph to see what it did in that loop.</div>`
+      : '<div class="insp-empty">Click any box in the graph to see what it does — the questions it asks, the prompt it runs, or the code it executes.</div>';
+    return;
+  }
+  let h = selectedNode.startsWith('_') ? stationInspector(selectedNode, tree) : nodeStatic(selectedNode, tree);
+  if (h === null) { el.innerHTML = '<div class="insp-empty">This box no longer exists — the workflow was edited. Click another.</div>'; return; }
+  h += runSection(selectedNode, tree);
+  el.innerHTML = h;
+}
+
+// static definition of a tree node (no per-run data)
+function nodeStatic(id, tree) {
+  const node = tree.nodes[id];
+  if (!node) return null;
+  const color = KIND_COLOR[node.kind];
+  let h = `<div class="insp-head"><span class="insp-title">${esc(niceName(id))}</span>
+    <span class="chip" style="color:${color};background:${color}1e">${KIND_TAG[node.kind]}</span>
+    ${tree.entry === id ? '<span class="chip" style="color:var(--faint);background:#f0f1f4">start</span>' : ''}</div>`;
+  if (node.kind === 'jev') {
+    h += `<p class="hint">A fast System-1 decision point. It reads the current state, answers the questions below, then routes the loop.</p>`;
+    h += `<div class="field"><div class="lbl">Questions it asks</div>`;
+    for (const [qk, q] of Object.entries(node.questions)) {
+      h += `<div class="qcard"><span class="qsq"></span><span class="qname">${esc(niceName(qk))}</span><span class="qtype">${q.type}</span>
+        <div class="kv">${esc(plainInstr(q.instructions))}</div>`;
+      if (q.criteria) h += `<div class="kv" style="color:var(--faint)">options: ${esc(Array.isArray(q.criteria) ? q.criteria.join(' → ') : Object.keys(q.criteria).join(', '))}</div>`;
+      h += `</div>`;
+    }
+    h += `</div>`;
+    const routes = describeRoutes(node);
+    if (routes.length) h += `<div class="field"><div class="lbl">Where it goes next</div><div class="box">${routes.map(esc).join('<br>')}</div></div>`;
+    h += advanced({ questions: node.questions, gates: node.gates, route: node.route, next: node.next });
+  } else if (node.kind === 'llm') {
+    h += `<p class="hint">A System-2 generation step (an LLM call). Only this kind of node can produce new text.</p>`;
+    h += `<div class="field"><div class="lbl">What it's told to do</div><div class="box">${esc(node.system || '(default assistant)')}</div></div>`;
+    h += `<div class="field"><div class="lbl">Prompt</div><div class="box">${esc(node.prompt)}</div></div>`;
+    h += advanced({ system: node.system, prompt: node.prompt, output_key: node.output_key, next: node.next });
+  } else {
+    h += `<p class="hint">A code step (written by S2). Runs deterministically — no model call.</p>`;
+    h += `<div class="field"><div class="lbl">Code</div><div class="box mono">${esc(node.source)}</div></div>`;
+    h += advanced({ next: node.next });
+  }
+  return h;
+}
+
+// static definition of a station node (Task input / Result / Evaluate / Improve)
+function stationInspector(id, tree) {
+  const meta = taskMeta();
+  if (id === '_task') {
+    let h = `<div class="insp-head"><span class="insp-title">Task input</span><span class="chip" style="color:#64748b;background:#64748b1e">input</span></div>`;
+    h += `<p class="hint">Every loop feeds in a new, different instance of the same kind of task.</p>`;
+    h += `<div class="field"><div class="lbl">Input format</div><div class="box">${esc(meta.description || (tree.task && tree.task.kind) || 'Free-form text describing one task instance.')}</div></div>`;
+    const samples = (tree.task && tree.task.sample_inputs) || [];
+    if (samples.length) h += `<div class="field"><div class="lbl">Example inputs</div><div class="box">${esc(samples.slice(0, 4).map((s, i) => (i + 1) + '. ' + s).join('\n'))}</div></div>`;
+    return h;
+  }
+  if (id === '_result') {
+    let h = `<div class="insp-head"><span class="insp-title">Result</span><span class="chip" style="color:#64748b;background:#64748b1e">output</span></div>`;
+    h += `<p class="hint">The final deliverable the workflow produces on every loop.</p>`;
+    h += `<div class="field"><div class="lbl">Output format</div><div class="box">${esc(meta.expected_output || 'As defined by the task.')}</div></div>`;
+    return h;
+  }
+  if (id === '_eval') {
+    const ev = tree.evaluation || {}, checks = Object.keys(ev.s1_battery || {});
+    let h = `<div class="insp-head"><span class="insp-title">Evaluate</span><span class="chip" style="color:#c77c0a;background:#f59e0b1e">scoring</span></div>`;
+    h += `<p class="hint">Every result is scored here to decide pass or fail.</p>`;
+    h += `<div class="field"><div class="lbl">How results are judged</div><div class="box">${esc(meta.how_to_judge || 'Judged against the task description.')}</div></div>`;
+    let cl = ev.code ? '• code check — deterministic, S2-authored<br>' : '';
+    checks.forEach(c => cl += '• ' + esc(niceName(c)) + ' — S1 quality question<br>');
+    cl += `<span style="color:var(--faint)">passes when S1 confidence ≥ ${ev.s1_pass_threshold ?? '—'}</span>`;
+    h += `<div class="field"><div class="lbl">Checks that run</div><div class="box">${cl}</div></div>`;
+    return h + advanced({ code: ev.code, s1_battery: ev.s1_battery, s1_pass_threshold: ev.s1_pass_threshold });
+  }
+  if (id === '_shape') {
+    const m = STATE.metrics || {};
+    let h = `<div class="insp-head"><span class="insp-title">Improve</span><span class="chip" style="color:#8b5cf6;background:#8b5cf61e">System 2</span></div>`;
+    h += `<p class="hint">The self-improvement step — how the workflow gets better over time.</p>`;
+    h += `<div class="field"><div class="lbl">How it works</div><div class="box">After each loop, System 2 (the LLM) reviews the recent results. If they are good and stable it keeps the workflow unchanged. If it sees failures or low-confidence patterns it edits the workflow — rewriting questions, thresholds, prompts, or code — and saves a new version. Edits must generalise across inputs, never overfit a single one. When editing stops, the system has converged.</div></div>`;
+    h += `<div class="field"><div class="lbl">Status</div><div class="box">${m.shaping_edits || 0} self-edit${(m.shaping_edits || 0) === 1 ? '' : 's'} over ${m.runs || 0} loops · currently on ${STATE.version || '—'}</div></div>`;
+    return h + advanced({ shaper_prompt: STATE.prompts && STATE.prompts.shaper });
+  }
+  return '';
+}
+
+// per-run section — only shown when a loop-history item is selected
+function runSection(id, tree) {
+  if (!selectedRun) return '';
+  const run = selectedRun, loopNo = STATE.runs.indexOf(run) + 1;
+  const wrap = inner => `<div class="field runsec"><div class="lbl" style="color:var(--accent)">In loop #${loopNo}${run.evaluation.passed ? '' : ' · failed'}</div>${inner}</div>`;
+  if (id === '_task') return wrap(`<div class="box">${esc(run.input)}</div>`);
+  if (id === '_result') return wrap(`<div class="box">${esc(String(run.result || '(none produced)'))}</div>`);
+  if (id === '_eval') return wrap(`<div class="box">${run.evaluation.passed ? '✔ passed' : '✘ failed'}${evalReasons(run.evaluation)}</div>`);
+  if (id === '_shape') return wrap(run.shaping
+    ? `<div class="box">${run.shaping.shaped ? '✎ edited → ' + esc(run.shaping.new_version) : '— kept unchanged'}<br><span style="color:var(--dim)">${esc(run.shaping.reason || '')}</span></div>`
+    : `<div class="box" style="color:var(--faint)">no shaping recorded</div>`);
+  const t = run.trace.find(x => x.node === id);
+  if (!t) return wrap(`<div class="box" style="color:var(--faint)">Not visited in this loop.</div>`);
+  const node = tree.nodes[id];
+  if (node && node.kind === 'jev' && t.answers) {
+    let inner = Object.entries(t.answers).map(([k, a]) => `<div class="kv"><b>${esc(niceName(k))}:</b> ${esc(ansStr(a))}</div>`).join('');
+    if (t.gate_fired) inner += `<div class="kv" style="color:#c77c0a">escalated — unsure on ${esc(niceName(t.gate_fired.question))}</div>`;
+    if (t.routed_to) inner += `<div class="kv">routed to → ${esc(niceName(t.routed_to))}</div>`;
+    return wrap(`<div class="box">${inner}</div>`);
+  }
+  if (node && node.kind === 'llm' && t.output_preview) return wrap(`<div class="box">${esc(t.output_preview)}</div>`);
+  if (node && node.kind === 'code') return wrap(`<div class="box">${t.result_preview ? esc(t.result_preview) : (t.error ? '<span style="color:#dc3d3d">' + esc(t.error) + '</span>' : esc(fmt(t.vars_after || {})))}</div>`);
+  if (t.error) return wrap(`<div class="box" style="color:#dc3d3d">${esc(t.error)}</div>`);
+  return wrap(`<div class="box" style="color:var(--faint)">visited (no recorded output)</div>`);
+}
+function advanced(obj) {
+  const raw = {}; for (const k in obj) if (obj[k] !== undefined && obj[k] !== null) raw[k] = obj[k];
+  return `<details class="adv"><summary>Advanced / raw definition</summary><pre>${esc(JSON.stringify(raw, null, 1))}</pre></details>`;
+}
+function describeRoutes(node) {
+  const out = [];
+  (node.gates || []).forEach(g => out.push(`if unsure → ${niceName(g.escalate_to)}`));
+  const r = node.route;
+  if (r) {
+    if (r.branches) for (const [o, tgt] of Object.entries(r.branches)) out.push(`“${o}” → ${niceName(tgt)}`);
+    if (r.if_true) out.push(`yes → ${niceName(r.if_true)}`);
+    if (r.if_false) out.push(`no → ${niceName(r.if_false)}`);
+    if (r.default) out.push(`otherwise → ${niceName(r.default)}`);
+  } else if (node.next) out.push(`→ ${niceName(node.next)}`);
+  return out;
+}
+function ansStr(a) {
+  if (a.type === 'noul') return (a.noul >= 0.5 ? 'yes' : 'no') + ` (${Math.round(a.noul * 100)}%)`;
+  if (a.type === 'choice') return `${a.choice} (${Math.round((a.confidence || 0) * 100)}% sure)`;
+  if (a.type === 'score') return `${a.score} (${Math.round((a.confidence || 0) * 100)}% sure)`;
+  return JSON.stringify(a);
+}
+function evalReasons(ev) {
+  const parts = ev.parts || {}, out = [];
+  const cm = parts.code_metric; if (cm && cm.notes) out.push('check: ' + cm.notes);
+  const sb = parts.s1_battery; if (sb && sb.checks) for (const [k, v] of Object.entries(sb.checks)) if (v && v.passed === false) out.push(niceName(k) + ': failed');
+  return out.length ? '<br><span style="color:var(--dim)">' + out.map(esc).join('<br>') + '</span>' : '';
+}
+
+/* ---------------------------- history ---------------------------- */
+function renderHistory() {
+  const crumb = document.getElementById('historyCrumb'), body = document.getElementById('historyBody');
+  if (selectedRun) {
+    const n = STATE.runs.indexOf(selectedRun) + 1;
+    crumb.innerHTML = `<button class="backbtn" onclick="closeLoopDetail()">← Back</button><a class="crumb-link" onclick="closeLoopDetail()">Loop history</a> <span class="crumb-sep">›</span> Loop #${n}`;
+    body.innerHTML = loopDetailHTML(selectedRun);
+  } else {
+    crumb.textContent = 'Loop history';
+    body.innerHTML = runListHTML();
+  }
+}
+function runListHTML() {
+  if (!STATE.runs.length) return '<div class="emptyrow">No loops yet — add inputs and hit “Run inputs”.</div>';
+  return '<div class="runlist">' + [...STATE.runs].reverse().slice(0, 60).map(run => {
+    const n = STATE.runs.indexOf(run) + 1, passed = run.evaluation.passed;
+    return `<div class="runitem" onclick="selectRunByIndex(${n - 1})">
+      <span class="num">${n}</span><span class="txt" title="${esc(run.input)}">${esc(run.input)}</span>
+      <span class="tags"><span class="pill ${passed ? 'ok' : 'bad'}">${passed ? 'pass' : 'fail'}</span>
+      ${run.escalated ? '<span class="pill warn">S2</span>' : ''}
+      ${run.shaping && run.shaping.shaped ? '<span class="pill dim" title="workflow edited">✎</span>' : ''}</span></div>`;
+  }).join('') + '</div>';
+}
+function selectRunByIndex(i) { selectRun(STATE.runs[i]); }
+async function closeLoopDetail() { selectedRun = null; await resolveShownTree(); render(); }
+
+function loopDetailHTML(run) {
+  const passed = run.evaluation.passed, failNode = (run.trace.find(t => t.error) || {}).node;
+  let h = `<div style="display:flex;align-items:center;gap:9px;margin-bottom:4px">
+    <span class="pill ${passed ? 'ok' : 'bad'}" style="font-size:.74rem;padding:3px 12px">${passed ? '✔ PASS' : '✘ FAIL'}</span>
+    <span class="hint">${run.escalated ? 'used S2' : 'stayed on S1'}</span></div>`;
+  h += `<div class="field" style="margin-top:8px"><div class="lbl">Input</div><div class="box">${esc(run.input)}</div></div>`;
+  h += `<div class="field"><div class="lbl">Result</div><div class="box mono">${esc(run.result == null ? '(none produced)' : fmt(run.result))}</div></div>`;
+  if (run.error) h += `<div class="field"><div class="lbl" style="color:var(--bad)">Failed at “${esc(niceName(failNode || '?'))}”</div><div class="box" style="border-color:#f6caca;background:#fef2f2">${esc(run.error)}</div></div>`;
+  else if (!passed) h += `<div class="field"><div class="lbl" style="color:var(--bad)">Why it failed</div><div class="box" style="border-color:#f6caca;background:#fef2f2">Result produced but the evaluation rejected it.${evalReasons(run.evaluation)}</div></div>`;
+  else h += `<div class="field"><div class="lbl">Verdict</div><div class="box">✔ passed${evalReasons(run.evaluation)}</div></div>`;
+  h += `<div class="field"><div class="lbl">Path taken</div><div class="tracechips">`;
+  run.trace.forEach((t, i) => {
+    const c = KIND_COLOR[t.kind] || '#94a3b8';
+    const isFail = !!t.error || t.node === failNode;
+    const style = isFail ? 'border-color:#ef4444;background:#fef2f2;color:#dc3d3d' : '';
+    h += (i ? '<span class="tarrow">›</span>' : '') + `<span class="tchip" style="${style}"><span class="d" style="background:${c}"></span>${esc(niceName(t.node))}${isFail ? ' ✗' : (t.gate_fired ? ' ⚠' : '')}</span>`;
+  });
+  h += `<span class="tarrow">›</span><span class="tchip" style="${passed ? 'border-color:#10b981;background:#f0fdf8;color:#0d9668' : 'border-color:#ef4444;background:#fef2f2;color:#dc3d3d'}">${passed ? '✓ pass' : '✗ fail'}</span>`;
+  h += `</div></div>`;
+  if (run.shaping) h += `<p class="hint" style="margin-top:12px">Improve step: ${run.shaping.shaped ? '<b>edited</b> → ' + esc(run.shaping.new_version) : 'kept unchanged'} — ${esc(run.shaping.reason || '')}</p>`;
+  return h;
+}
+
+/* ---------------------------- actions + progress ---------------------------- */
+function setBusy(on) {
+  busy = on;
+  ['runBtn', 'streamBtn', 'shapeBtn'].forEach(id => document.getElementById(id).disabled = on);
+  document.getElementById('progWrap').hidden = !on;
+}
+function setProgress(done, total, label) {
+  document.getElementById('pbar').style.width = total ? Math.round(done / total * 100) + '%' : '0%';
+  document.getElementById('plabel').textContent = label;
+}
+async function runBatch() {
+  const inputs = document.getElementById('input').value.split('\n').map(s => s.trim()).filter(Boolean);
+  if (!inputs.length) { alert('Type at least one task input (one per line).'); return; }
+  await runInputs(inputs);
+}
+async function runStream() {
+  if (busy) return;
+  setBusy(true); setProgress(0, 1, 'Generating new task instances…');
+  try {
+    const r = await fetch('/api/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ task: currentTask, count: +document.getElementById('streamN').value }) });
+    const data = await r.json();
+    if (data.error) { alert(data.error); return; }
+    await runInputs(data.inputs, true);
+  } finally { setBusy(false); }
+}
+async function runInputs(inputs, keepBusy) {
+  if (busy && !keepBusy) return;
+  if (!keepBusy) setBusy(true);
+  selectedRun = null;
+  try {
+    for (let i = 0; i < inputs.length; i++) {
+      setProgress(i, inputs.length, `Loop ${i + 1} of ${inputs.length}: ${trunc(inputs[i], 48)}`);
+      const r = await fetch('/api/run', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ task: currentTask, inputs: [inputs[i]] }) });
+      const data = await r.json();
+      if (data.error) { alert(data.error); break; }
+      await refresh();
+      const last = STATE.runs[STATE.runs.length - 1];
+      if (last && last.shaping) showShaping(last.shaping);
+      setProgress(i + 1, inputs.length, `Loop ${i + 1} of ${inputs.length} done`);
+    }
+    setProgress(inputs.length, inputs.length, `Finished ${inputs.length} loop${inputs.length > 1 ? 's' : ''}`);
+    setTimeout(() => { if (!busy) document.getElementById('progWrap').hidden = true; }, 1400);
+  } finally { if (!keepBusy) setBusy(false); }
+}
+async function forceShape() {
+  if (busy) return;
+  setBusy(true); setProgress(0, 1, 'S2 is reviewing the workflow…');
+  try {
+    const r = await fetch('/api/shape', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ task: currentTask }) });
+    const data = await r.json();
+    showShaping(data.shaping);
+    setProgress(1, 1, data.shaping.shaped ? 'Workflow improved' : 'No change needed');
+    await refresh();
+    setTimeout(() => { if (!busy) document.getElementById('progWrap').hidden = true; }, 1400);
+  } finally { setBusy(false); }
+}
+function showShaping(s) {
+  document.getElementById('lastShaping').innerHTML = s.shaped
+    ? `<b style="color:#c77c0a">Workflow edited</b> → ${esc(s.new_version)}: ${esc(s.reason || '')}`
+    : `<span style="color:#0d9668">Workflow kept</span> — ${esc(s.reason || 'no change needed')}`;
+}
+
+/* ---------------------------- wizard ---------------------------- */
+function openWizard() { document.getElementById('wizard').hidden = false; }
+function closeWizard() { document.getElementById('wizard').hidden = true; document.getElementById('wStatus').textContent = ''; }
+document.getElementById('wizard').addEventListener('click', e => { if (e.target === e.currentTarget) closeWizard(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeWizard(); });
+async function createTask() {
+  const name = document.getElementById('wName').value.trim();
+  const description = document.getElementById('wDesc').value.trim();
+  const output = document.getElementById('wOut').value.trim();
+  if (!name || !description || !output) { document.getElementById('wStatus').textContent = 'Please fill in the task name and questions 1 and 2.'; return; }
+  const btn = document.getElementById('wCreate'); btn.disabled = true;
+  document.getElementById('wStatus').innerHTML = '<span class="spin dark"></span> S2 is designing your workflow… (up to a minute)';
+  try {
+    const r = await fetch('/api/tasks', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, description, output, metric: document.getElementById('wMetric').value.trim(),
+        examples: document.getElementById('wExamples').value.split('\n').map(s => s.trim()).filter(Boolean) }) });
+    const data = await r.json();
+    if (data.error) { document.getElementById('wStatus').textContent = data.error; return; }
+    ['wName', 'wDesc', 'wOut', 'wMetric', 'wExamples'].forEach(id => document.getElementById(id).value = '');
+    closeWizard(); switchTask(data.task);
+  } finally { btn.disabled = false; }
+}
+
+/* ---------------------------- util ---------------------------- */
+function trunc(s, n) { s = String(s); return s.length > n ? s.slice(0, n - 1) + '…' : s; }
+function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+{ const p = new URLSearchParams(location.search); const t = p.get('task'); if (t) currentTask = t; const o = p.get('orient'); if (o === 'h' || o === 'v') graphOrient = o; }
+refresh();
+</script>
+</body>
+</html>
