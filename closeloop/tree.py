@@ -1,313 +1,316 @@
-"""Decision/action tree: the artifact S2 shapes and S1 executes.
+"""Decision/action tree — the artifact S2 shapes and S1 executes (multi-port).
 
-Tree JSON shape (versioned, diffable — REQUIREMENT.md R-5.5, open question 1):
+Envelope: ctx = { inputs: {name→json}, vars: {name→json}, outputs: {name→json} }.
+Nodes read {inputs.<name>} / {vars.<key>} and fill named output ports.
 
+Tree JSON:
 {
-  "entry": "<node id>",
-  "nodes": {
-    "<id>": {
-      "kind": "jev",                       # S1 decision node
-      "questions": { <Jev question map> }, # noul/choice/score, batched in ONE call
-      "gates": [                           # confidence-gated escalation (R-3.2a)
-        {"question": "q", "min_confidence": 0.6, "escalate_to": "<node id>"}
-      ],
-      "route": {                           # declarative routing — no eval() of model text
-        "on": "q",                         # question key to branch on
-        "branches": {"optionA": "<id>"},   # for choice questions
-        "noul_threshold": 0.5,             # for noul questions:
-        "if_true": "<id>", "if_false": "<id>",
-        "default": "<id>"
-      },
-      "next": "<id>"                       # unconditional fallthrough if no route
-    },
-    "<id>": { "kind": "llm",               # S2 operation node (generation — Jev can't)
-      "system": "...", "prompt": "... {input} {vars.x} ...",
-      "output_key": "draft", "next": "<id>" },
-    "<id>": { "kind": "code",              # S2-authored executable operation
-      "source": "def run(ctx): ...",       # sets ctx['vars'][...] / ctx['result']
-      "next": "<id>" }
-  },
-  "evaluation": {
-    "code": "def evaluate(task_input, result): return {'passed': bool, 'score': float, 'notes': str}",
-    "s1_battery": { <Jev question map over {input, result} state> },
-    "s1_pass_threshold": 0.6
-  }
+  "entry": nodeId,
+  "nodes": { id: {kind: jev|llm|code|tool, ...} },
+  "evaluation": { <output_port_name>: {code?, s1_battery?, s1_pass_threshold?} },
+  "task": { "kind": str, "sample_inputs"?: {...} }   # optional, for the generator
 }
+
+Node kinds:
+  jev  {questions, gates?, route?, next?, on_error?}
+  llm  {system?, prompt, output_key?, output_port?, next?, on_error?}
+  code {source(TS run(ctx)), next?, on_error?}
+  tool {tool, args?, output_key?, output_port?, next?, on_error?}
+
+route.on may be a question key (branch on the Jev answer) OR a plain JSON path
+"inputs.x.field" / "vars.k.field" (deterministic switch, no model call).
 """
 import json
-import math
 import re
 
-from . import logsetup
+from . import logsetup, schema
 
 log = logsetup.get("tree")
 
-MAX_STEPS = 30
-
-# Code nodes are S2-authored: only these modules may be imported (prototype
-# sandbox; real isolation is REQUIREMENT.md open question 2).
-SAFE_MODULES = {"re": re, "json": json, "math": math}
-
-
-def safe_import(name, *args, **kwargs):
-    if name in SAFE_MODULES:
-        return SAFE_MODULES[name]
-    raise ImportError(f"module '{name}' is not available inside tree code nodes (allowed: re, json, math)")
-
-
-SAFE_BUILTINS = {"len": len, "str": str, "int": int, "float": float, "bool": bool,
-                 "min": min, "max": max, "sum": sum, "sorted": sorted, "any": any, "all": all,
-                 "list": list, "dict": dict, "set": set, "tuple": tuple, "enumerate": enumerate,
-                 "zip": zip, "range": range, "abs": abs, "round": round, "isinstance": isinstance,
-                 "repr": repr, "ValueError": ValueError, "Exception": Exception,
-                 "__import__": safe_import}
+MAX_STEPS = 40
 
 
 class TreeError(Exception):
     pass
 
 
-def is_legacy_python(source):
-    return "def run(" in source or "def evaluate(" in source
-
-
+# ------------------------------------------------------------------ validation
 def validate(tree):
-    """Structural graph validation before a tree version is accepted (R-5.5)."""
+    """Structural graph validation (before a tree version is accepted)."""
     if not isinstance(tree, dict):
         raise TreeError("tree must be an object")
     nodes = tree.get("nodes")
     if not isinstance(nodes, dict) or not nodes:
         raise TreeError("tree.nodes must be a non-empty object")
-    entry = tree.get("entry")
-    if entry not in nodes:
-        raise TreeError(f"tree.entry '{entry}' is not a node id")
+    if tree.get("entry") not in nodes:
+        raise TreeError(f"tree.entry '{tree.get('entry')}' is not a node id")
     for nid, node in nodes.items():
-        kind = node.get("kind")
-        if kind not in ("jev", "llm", "code"):
-            raise TreeError(f"node '{nid}': unknown kind '{kind}'")
-        if kind == "jev" and not node.get("questions"):
-            raise TreeError(f"jev node '{nid}' has no questions")
-        if kind == "llm" and not node.get("prompt"):
-            raise TreeError(f"llm node '{nid}' has no prompt")
-        if kind == "code":
+        for e in schema.validate_node(nid, node):
+            raise TreeError(e)
+        if node["kind"] == "code":
             src = node.get("source", "")
             if "function run(" not in src and "def run(" not in src:
-                raise TreeError(f"code node '{nid}' must define TypeScript `function run(ctx)`")
-            if not is_legacy_python(src) and ("import " in src or "require(" in src):
-                raise TreeError(f"code node '{nid}': imports are not allowed in code nodes")
+                raise TreeError(f"code node '{nid}' must define `function run(ctx: Ctx)`")
+            if "import " in src or "require(" in src:
+                raise TreeError(f"code node '{nid}': imports are not allowed")
         for ref in _refs(node):
             if ref is not None and ref not in nodes:
                 raise TreeError(f"node '{nid}' references unknown node '{ref}'")
-    # reachability: every node must be reachable from entry (no orphan subgraphs)
-    reachable = {entry}
-    frontier = [entry]
+    # reachability
+    reachable, frontier = {tree["entry"]}, [tree["entry"]]
     while frontier:
-        nid = frontier.pop()
-        for ref in _refs(nodes[nid]):
+        for ref in _refs(nodes[frontier.pop()]):
             if ref is not None and ref not in reachable:
-                reachable.add(ref)
-                frontier.append(ref)
+                reachable.add(ref); frontier.append(ref)
     orphans = set(nodes) - reachable
     if orphans:
-        raise TreeError(f"unreachable nodes (orphans): {', '.join(sorted(orphans))}")
+        raise TreeError(f"unreachable nodes: {', '.join(sorted(orphans))}")
     return True
-
-
-def compile_tree(tree):
-    """Compile the WHOLE graph: structural validation + type-check of every
-    code node and the evaluation validator. Returns a list of error strings
-    (empty list = tree compiles clean and may be deployed)."""
-    from . import tscode
-    errors = []
-    try:
-        validate(tree)
-    except TreeError as e:
-        log.warning("compile: graph validation failed: %s", e)
-        return [f"graph: {e}"]
-    log.debug("compile: graph valid (%d nodes) — type-checking code", len(tree.get("nodes", {})))
-    for nid, node in tree.get("nodes", {}).items():
-        if node.get("kind") != "code":
-            continue
-        src = node.get("source", "")
-        if is_legacy_python(src):
-            try:
-                compile(src, f"<node {nid}>", "exec")
-            except SyntaxError as e:
-                errors.append(f"code node '{nid}' (legacy python): {e}")
-        else:
-            err = tscode.typecheck(src, "run")
-            if err:
-                errors.append(f"code node '{nid}': {err}")
-    ev_code = tree.get("evaluation", {}).get("code")
-    if ev_code:
-        if is_legacy_python(ev_code):
-            try:
-                compile(ev_code, "<evaluation>", "exec")
-            except SyntaxError as e:
-                errors.append(f"evaluation code (legacy python): {e}")
-        else:
-            err = tscode.typecheck(ev_code, "eval")
-            if err:
-                errors.append(f"evaluation code: {err}")
-    if errors:
-        log.warning("compile: %d type/syntax error(s): %s", len(errors), logsetup.preview("; ".join(errors), 300))
-    else:
-        log.debug("compile: clean — tree may be deployed")
-    return errors
 
 
 def _refs(node):
     yield node.get("next")
-    for g in node.get("gates", []):
+    for g in node.get("gates", []) or []:
         yield g.get("escalate_to")
     route = node.get("route") or {}
-    yield route.get("default")
-    yield route.get("if_true")
-    yield route.get("if_false")
-    for target in (route.get("branches") or {}).values():
-        yield target
+    yield route.get("default"); yield route.get("if_true"); yield route.get("if_false")
+    for t in (route.get("branches") or {}).values():
+        yield t
+    oe = node.get("on_error")
+    if isinstance(oe, dict):
+        yield oe.get("escalate")
 
 
+def declared_outputs(tree):
+    """Output-port names the tree writes: explicit output_port + code `outputs[...]`."""
+    produced = set()
+    for node in tree.get("nodes", {}).values():
+        if node.get("output_port"):
+            produced.add(node["output_port"])
+        if node.get("kind") == "code":
+            for m in re.findall(r"outputs\s*\[\s*['\"]([^'\"]+)['\"]\s*\]", node.get("source", "")):
+                produced.add(m)
+            for m in re.findall(r"outputs\.([A-Za-z_]\w*)", node.get("source", "")):
+                produced.add(m)
+    return produced
+
+
+def compile_tree(tree, contract=None):
+    """Whole-graph compile gate: structural validation + output wiring + tsc.
+    Returns a list of error strings ([] = clean)."""
+    from . import tscode
+    try:
+        validate(tree)
+    except TreeError as e:
+        log.warning("compile: graph invalid: %s", e)
+        return [f"graph: {e}"]
+    errors = []
+    # output-wiring check (I6): every required output port must be produced
+    if contract:
+        produced = declared_outputs(tree)
+        for p in contract.get("outputs", []):
+            if p.get("required", True) and p["name"] not in produced:
+                errors.append(f"output port '{p['name']}' is never produced by any node "
+                              f"(set output_port=\"{p['name']}\" on an llm/tool node, or write ctx.outputs[\"{p['name']}\"] in code)")
+    # tsc on code nodes
+    for nid, node in tree.get("nodes", {}).items():
+        if node.get("kind") == "code":
+            err = tscode.typecheck(node.get("source", ""), "run")
+            if err:
+                errors.append(f"code node '{nid}': {err}")
+    # tsc on per-output evaluation code
+    for port, spec in (tree.get("evaluation") or {}).items():
+        if spec.get("code"):
+            err = tscode.typecheck(spec["code"], "eval")
+            if err:
+                errors.append(f"evaluation[{port}] code: {err}")
+    if errors:
+        log.warning("compile: %d error(s): %s", len(errors), logsetup.preview("; ".join(errors), 300))
+    else:
+        log.debug("compile: clean")
+    return errors
+
+
+# ------------------------------------------------------------------ runtime
 class TreeRunner:
-    """Walks a tree for one task. Code owns control flow (R-2.4);
-    S1 supplies judgements, S2 supplies content."""
+    """Walks a tree for one input bundle. Code owns control flow (R-2.4)."""
 
     def __init__(self, tree, jev_client, llm_client):
         self.tree = tree
         self.jev = jev_client
         self.llm = llm_client
 
-    def run(self, task_input):
-        ctx = {"input": task_input, "vars": {}, "result": None}
+    def run(self, inputs):
+        ctx = {"inputs": inputs, "vars": {}, "outputs": {}}
         trace = []
         node_id = self.tree["entry"]
-        steps = 0
-        escalated = False
-        log.debug("tree run start: entry=%s | input: %s", node_id, logsetup.preview(task_input, 160))
+        steps, escalated = 0, False
+        log.debug("tree run start: entry=%s | inputs=%s", node_id, logsetup.preview(inputs, 160))
 
         while node_id is not None and steps < MAX_STEPS:
             steps += 1
             node = self.tree["nodes"][node_id]
             entry = {"node": node_id, "kind": node["kind"]}
-            log.debug("step %d: node=%s kind=%s", steps, node_id, node["kind"])
             try:
                 if node["kind"] == "jev":
-                    node_id, escalation = self._run_jev(node, ctx, entry)
-                    escalated = escalated or escalation
+                    node_id, esc = self._run_jev(node, ctx, entry)
+                    escalated = escalated or esc
                 elif node["kind"] == "llm":
                     node_id = self._run_llm(node, ctx, entry)
                 elif node["kind"] == "code":
                     node_id = self._run_code(node, ctx, entry)
-            except Exception as e:  # a failing node ends the run; the eval stage will flag it
+                elif node["kind"] == "tool":
+                    node_id = self._run_tool(node, ctx, entry)
+            except Exception as e:
                 entry["error"] = str(e)
+                node_id = self._on_error(node, entry, e)
                 trace.append(entry)
-                log.error("node '%s' (%s) failed: %s — run aborted", entry["node"], entry["kind"], e)
-                return {"result": ctx["result"], "trace": trace, "error": str(e), "escalated": escalated}
+                if node_id is None and entry.get("aborted"):
+                    log.error("node '%s' (%s) failed, run aborted: %s", entry["node"], entry["kind"], e)
+                    return {"outputs": ctx["outputs"], "trace": trace, "error": str(e), "escalated": escalated}
+                continue
             trace.append(entry)
 
         if steps >= MAX_STEPS and node_id is not None:
-            log.warning("tree run hit MAX_STEPS=%d (possible loop) — stopping at %s", MAX_STEPS, node_id)
-        log.debug("tree run end: %d steps | escalated=%s | result: %s",
-                  steps, escalated, logsetup.preview(ctx["result"], 160))
-        return {"result": ctx["result"], "trace": trace, "error": None, "escalated": escalated}
+            log.warning("tree run hit MAX_STEPS=%d — stopping", MAX_STEPS)
+        log.debug("tree run end: %d steps | escalated=%s | outputs=%s",
+                  steps, escalated, logsetup.preview(ctx["outputs"], 160))
+        return {"outputs": ctx["outputs"], "trace": trace, "error": None, "escalated": escalated}
 
-    # -- S1 decision node ------------------------------------------------
+    def _on_error(self, node, entry, exc):
+        policy = node.get("on_error", "abort")
+        if isinstance(policy, dict) and policy.get("escalate"):
+            entry["on_error"] = "escalate:" + policy["escalate"]
+            return policy["escalate"]
+        if policy == "skip":
+            entry["on_error"] = "skip"
+            return node.get("next")
+        entry["aborted"] = True
+        return None
+
+    # -- S1 decision node ----------------------------------------------------
     def _run_jev(self, node, ctx, entry):
-        state = {"task_input": ctx["input"], **{k: v for k, v in ctx["vars"].items() if isinstance(v, (str, int, float, list, dict))}}
+        state = {"inputs": ctx["inputs"], "vars": ctx["vars"]}
         answers, meta = self.jev.system_one(state, node["questions"])
-        entry["state_preview"] = {k: str(v)[:220] for k, v in state.items()}
         entry["answers"] = answers
         entry["meta"] = meta
 
-        # Confidence gates first: low confidence → escalate to S2 (R-3.2a)
-        for gate in node.get("gates", []):
+        for gate in node.get("gates", []) or []:
             ans = answers.get(gate["question"], {})
             conf = ans.get("confidence")
             if conf is None and ans.get("type") == "noul":
-                conf = abs(ans["noul"] - 0.5) * 2  # distance from equiprobable
+                conf = abs(ans["noul"] - 0.5) * 2
             if conf is not None and conf < gate["min_confidence"]:
                 entry["gate_fired"] = {"question": gate["question"], "confidence": conf}
-                log.warning("gate fired at '%s': %s confidence %.2f < %.2f — escalating to S2 node '%s'",
+                log.warning("gate fired at '%s': %s conf %.2f < %.2f → %s",
                             entry["node"], gate["question"], conf, gate["min_confidence"], gate["escalate_to"])
                 return gate["escalate_to"], True
 
         route = node.get("route")
         if route:
-            ans = answers.get(route["on"], {})
-            if ans.get("type") == "choice":
-                target = (route.get("branches") or {}).get(ans["choice"], route.get("default"))
-                entry["routed_to"] = target
-                log.debug("route '%s' on choice '%s'=%r -> %s", entry["node"], route["on"], ans.get("choice"), target)
-                return target, False
-            if ans.get("type") == "noul":
-                target = route.get("if_true") if ans["noul"] >= route.get("noul_threshold", 0.5) else route.get("if_false")
-                entry["routed_to"] = target
-                log.debug("route '%s' on noul '%s'=%.2f (thr %.2f) -> %s", entry["node"], route["on"],
-                          ans["noul"], route.get("noul_threshold", 0.5), target)
-                return target, False
-            if ans.get("type") == "score":
-                # branches keyed by floor(score)
-                target = (route.get("branches") or {}).get(str(int(ans["score"])), route.get("default"))
-                entry["routed_to"] = target
-                log.debug("route '%s' on score '%s'=%.2f -> %s", entry["node"], route["on"], ans.get("score", 0), target)
-                return target, False
+            on = route["on"]
+            if on in answers:  # branch on a Jev answer
+                ans = answers[on]
+                if ans.get("type") == "choice":
+                    tgt = (route.get("branches") or {}).get(ans["choice"], route.get("default"))
+                elif ans.get("type") == "noul":
+                    tgt = route.get("if_true") if ans["noul"] >= route.get("noul_threshold", 0.5) else route.get("if_false")
+                elif ans.get("type") == "score":
+                    tgt = (route.get("branches") or {}).get(str(int(ans["score"])), route.get("default"))
+                else:
+                    tgt = route.get("default")
+            else:  # deterministic field-based routing (no model call)
+                val = _resolve_path(ctx, on)
+                tgt = (route.get("branches") or {}).get(str(val), route.get("default"))
+            entry["routed_to"] = tgt
+            return tgt, False
         return node.get("next"), False
 
-    # -- S2 operation node ----------------------------------------------
+    # -- S2 generation node --------------------------------------------------
     def _run_llm(self, node, ctx, entry):
         prompt = _fill(node["prompt"], ctx)
-        # Every LLM node emits a JSON object (n8n-style structured data).
         system = node.get("system", "You are a helpful assistant.") + \
             "\nRespond with a single JSON object (no prose outside the JSON)."
         text, meta = self.llm.complete(system, prompt, force_json=True)
-        try:
-            obj = json.loads(text)
-            if not isinstance(obj, dict):
-                obj = {"value": obj}
-        except (ValueError, TypeError):
-            obj = {"text": text}  # non-JSON fallback: wrap so vars stay JSON objects
+        obj = _parse_json_obj(text)
         key = node.get("output_key", "output")
         ctx["vars"][key] = obj
-        if node.get("is_result", False) or node.get("next") is None:
-            ctx["result"] = obj
+        if node.get("output_port"):
+            ctx["outputs"][node["output_port"]] = obj
+            entry["output_port"] = node["output_port"]
         entry["prompt_preview"] = prompt[:400]
         entry["output_key"] = key
         entry["output_preview"] = json.dumps(obj)[:400]
         entry["meta"] = meta
-        log.debug("llm node '%s' -> vars.%s (json): %s", entry["node"], key, logsetup.preview(obj, 160))
         return node.get("next")
 
-    # -- S2-authored executable node -------------------------------------
+    # -- code node -----------------------------------------------------------
     def _run_code(self, node, ctx, entry):
-        entry["vars_before"] = {k: logsetup.preview(v, 220) for k, v in ctx["vars"].items()}
-        src = node["source"]
-        lang = "python(legacy)" if is_legacy_python(src) else "typescript"
-        log.debug("code node '%s' exec (%s)", entry["node"], lang)
-        if is_legacy_python(src):
-            # Legacy Python nodes from pre-TypeScript tree versions.
-            ns = {"__builtins__": dict(SAFE_BUILTINS), "json": json, "re": re, "math": math}
-            exec(src, ns)
-            ns["run"](ctx)
-        else:
-            from . import tscode
-            # Pass real JSON values through (vars/result are JSON, n8n-style).
-            new_ctx = tscode.run_code(src, {"input": ctx["input"],
-                                            "vars": ctx["vars"],
-                                            "result": ctx["result"]})
-            ctx["vars"] = new_ctx.get("vars", ctx["vars"])
-            ctx["result"] = new_ctx.get("result", ctx["result"])
-        entry["vars_after"] = {k: logsetup.preview(v, 220) for k, v in ctx["vars"].items()}
-        if ctx["result"] is not None:
-            entry["result_preview"] = logsetup.preview(ctx["result"], 400)
+        from . import tscode
+        entry["vars_before"] = {k: logsetup.preview(v, 200) for k, v in ctx["vars"].items()}
+        new_ctx = tscode.run_code(node["source"], {"inputs": ctx["inputs"], "vars": ctx["vars"], "outputs": ctx["outputs"]})
+        ctx["vars"] = new_ctx.get("vars", ctx["vars"])
+        ctx["outputs"] = new_ctx.get("outputs", ctx["outputs"])
+        entry["vars_after"] = {k: logsetup.preview(v, 200) for k, v in ctx["vars"].items()}
+        entry["outputs_after"] = {k: logsetup.preview(v, 200) for k, v in ctx["outputs"].items()}
         return node.get("next")
+
+    # -- tool node -----------------------------------------------------------
+    def _run_tool(self, node, ctx, entry):
+        from . import tools
+        args = _resolve_args(node.get("args", {}), ctx)
+        result = tools.run(node["tool"], args)
+        key = node.get("output_key", node["tool"] + "_out")
+        ctx["vars"][key] = result
+        if node.get("output_port"):
+            ctx["outputs"][node["output_port"]] = result
+            entry["output_port"] = node["output_port"]
+        entry["tool"] = node["tool"]
+        entry["output_preview"] = logsetup.preview(result, 300)
+        return node.get("next")
+
+
+# ------------------------------------------------------------------ helpers
+def _parse_json_obj(text):
+    try:
+        obj = json.loads(text)
+        return obj if isinstance(obj, dict) else {"value": obj}
+    except (ValueError, TypeError):
+        return {"text": text}
 
 
 def _fill(template, ctx):
-    """Substitute {input} / {vars.key}. JSON values are inserted as JSON text."""
-    out = template.replace("{input}", _as_text(ctx["input"]))
-    for k, v in ctx["vars"].items():
-        out = out.replace("{vars.%s}" % k, _as_text(v))
-    return out
+    """Substitute {inputs.<name>} / {vars.<key>} / {outputs.<port>} with JSON text.
+    Output ports already filled upstream are readable so a later node can assemble
+    them (e.g. render a document from earlier outputs)."""
+    def sub(m):
+        return _as_text(_resolve_path(ctx, m.group(1)))
+    return re.sub(r"\{((?:inputs|vars|outputs)\.[^}]+)\}", sub, template)
+
+
+def _resolve_args(args, ctx):
+    """Resolve {inputs.x}/{vars.y} inside tool args. A whole-string placeholder
+    yields the raw JSON value (so an asset ref passes through intact)."""
+    if isinstance(args, str):
+        m = re.fullmatch(r"\{((?:inputs|vars|outputs)\.[^}]+)\}", args.strip())
+        if m:
+            return _resolve_path(ctx, m.group(1))
+        return _fill(args, ctx)
+    if isinstance(args, dict):
+        return {k: _resolve_args(v, ctx) for k, v in args.items()}
+    if isinstance(args, list):
+        return [_resolve_args(v, ctx) for v in args]
+    return args
+
+
+def _resolve_path(ctx, path):
+    cur = ctx
+    for part in path.split("."):
+        if isinstance(cur, dict):
+            cur = cur.get(part)
+        else:
+            return None
+    return cur
 
 
 def _as_text(v):

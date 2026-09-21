@@ -24,8 +24,16 @@
   .brand { font-size: 1.08rem; font-weight: 700; letter-spacing: -.01em; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
   .brand .logo { color: var(--accent); font-size: 1.25rem; }
   .spacer { flex: 1; }
-  select { background: var(--card); color: var(--ink); border: 1px solid var(--line2); border-radius: 999px; padding: 8px 16px; font: inherit; font-weight: 500; max-width: 230px; cursor: pointer; }
+  select { appearance: none; -webkit-appearance: none; -moz-appearance: none;
+    background-color: var(--card); color: var(--ink); border: 1px solid var(--line2); font: inherit; font-weight: 500;
+    padding: 8px 36px 8px 14px; max-width: 230px; cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 13px center; background-size: 11px; }
   select:hover { border-color: #cdd2da; }
+  select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(79,107,237,.12); }
+  /* top bar: give the task select and the New-task button the same height + centering */
+  header select, header button { height: 38px; }
+  header button { display: inline-flex; align-items: center; }
   .status { display: inline-flex; align-items: center; gap: 7px; font-size: .76rem; color: var(--dim); padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); }
   .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--faint); }
   .dot.live { background: var(--ok); box-shadow: 0 0 0 3px rgba(16,185,129,.15); }
@@ -51,12 +59,95 @@
   .card h3 { font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; color: var(--faint); font-weight: 700; margin-bottom: 12px; }
   .lead { font-size: .8rem; color: var(--dim); line-height: 1.55; margin-bottom: 12px; }
 
-  textarea, input[type=text] { width: 100%; background: #fcfcfd; color: var(--ink); border: 1px solid var(--line2); border-radius: 12px; padding: 12px; font: inherit; resize: vertical; }
+  textarea, input[type=text], input[type=password] { width: 100%; background: #fcfcfd; color: var(--ink); border: 1px solid var(--line2); border-radius: 12px; padding: 12px; font: inherit; resize: vertical; }
   textarea { min-height: 120px; font-size: .84rem; line-height: 1.55; }
   textarea:focus, input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(79,107,237,.12); }
   input[type=number] { width: 56px; background: #fcfcfd; color: var(--ink); border: 1px solid var(--line2); border-radius: 10px; padding: 8px; font: inherit; text-align: center; }
   .field-row { display: flex; gap: 9px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
   .hint { font-size: .76rem; color: var(--faint); line-height: 1.5; }
+
+  /* ---------- feed-inputs form (one control per input port) ---------- */
+  .feed-lbl { display: block; font-size: .78rem; font-weight: 600; margin: 12px 0 5px; }
+  .feed-lbl:first-child { margin-top: 0; }
+  .feed-lbl .opt { color: var(--faint); font-weight: 400; font-size: .68rem; text-transform: uppercase; letter-spacing: .04em; margin-left: 5px; }
+  .feed-in { min-height: 62px; font-size: .82rem; }
+  /* custom file control (hides the native "Choose File / No file chosen") */
+  .feed-file { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 11px;
+    font-size: .82rem; font-weight: 500; background: #fcfcfd; border: 1px dashed var(--line2); color: var(--dim); cursor: pointer;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .feed-file:hover { border-color: var(--accent); color: var(--ink); background: #f7f9ff; }
+  .feed-file.ok { border-style: solid; border-color: var(--ok); color: var(--ok); background: #f0fdf8; }
+  .feed-file.err { border-style: solid; border-color: var(--bad); color: var(--bad); background: #fef2f2; }
+  .feed-file > span { overflow: hidden; text-overflow: ellipsis; }
+
+  /* ---------- TASK panel (graphical, compact) ---------- */
+  .ti-name { font-size: 1.02rem; font-weight: 700; letter-spacing: -.01em; margin-bottom: 4px; }
+  .ti-desc { font-size: .76rem; color: var(--dim); line-height: 1.45; margin-bottom: 2px;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .ti-group { margin-top: 11px; }
+  .ti-group-lbl { font-size: .6rem; text-transform: uppercase; letter-spacing: .08em; color: var(--faint); font-weight: 700; margin-bottom: 5px; }
+  .ti-ports { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .ti-port2 { display: flex; align-items: center; gap: 7px; padding: 5px 8px; border: 1px solid var(--line); background: #fafbfc; min-width: 0; }
+  .ti-ic { width: 22px; height: 22px; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; border: 1px solid var(--line); }
+  .ti-pname { font-weight: 600; font-size: .78rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ti-ptype { font-size: .55rem; text-transform: uppercase; letter-spacing: .03em; color: var(--faint); font-weight: 700; margin-left: auto; padding-left: 4px; flex: 0 0 auto; }
+  .ti-meta { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
+  .ti-fact { display: inline-flex; align-items: center; gap: 5px; font-size: .71rem; color: var(--dim); background: #f7f8fa; border: 1px solid var(--line); padding: 3px 8px; }
+  .ti-fact svg { width: 12px; height: 12px; }
+  .feed-lbl svg { vertical-align: -2px; margin-right: 5px; }
+
+  /* ---------- tabbed modal (feed inputs: manual / api) ---------- */
+  .modal.feedm { width: min(600px, 94vw); }
+  .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); margin: 16px 0 18px; }
+  .tab { background: none; border: 0; border-bottom: 2px solid transparent; padding: 9px 15px; font-size: .85rem; font-weight: 600; color: var(--dim); cursor: pointer; }
+  .tab:hover { color: var(--ink); }
+  .tab.active { color: var(--ink); border-bottom-color: var(--accent); }
+  .api-block { margin-bottom: 14px; border: 1px solid var(--line); }
+  .api-head { display: flex; align-items: center; justify-content: space-between; padding: 7px 8px 7px 12px; background: #f7f8fa; border-bottom: 1px solid var(--line); font-size: .68rem; text-transform: uppercase; letter-spacing: .05em; color: var(--faint); font-weight: 700; }
+  .api-block pre { margin: 0; padding: 12px; overflow-x: auto; font-family: ui-monospace, Consolas, monospace; font-size: .74rem; line-height: 1.55; white-space: pre; }
+  code { font-family: ui-monospace, Consolas, monospace; font-size: .9em; background: #f0f1f4; padding: 1px 5px; }
+
+  /* ---------- top nav + views ---------- */
+  .nav { display: flex; gap: 2px; }
+  .navlink { background: none; border: 0; padding: 8px 14px; font-size: .86rem; font-weight: 600; color: var(--dim); cursor: pointer; border-bottom: 2px solid transparent; }
+  .navlink:hover { color: var(--ink); }
+  .navlink.active { color: var(--ink); border-bottom-color: var(--accent); }
+  .view { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+  .view[hidden] { display: none; }
+  .view.page { overflow-y: auto; padding: 26px 30px; }
+  .page-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; gap: 12px; }
+  .page-head h1 { font-size: 1.4rem; font-weight: 800; letter-spacing: -.02em; }
+
+  /* empty state */
+  #emptyState { flex: 1; align-items: center; justify-content: center; }
+  .empty-card { text-align: center; max-width: 430px; padding: 36px; }
+  .empty-ic { width: 60px; height: 60px; margin: 0 auto 18px; border: 1px solid var(--line2); display: flex; align-items: center; justify-content: center; color: var(--accent); }
+  .empty-card h2 { font-size: 1.3rem; font-weight: 700; margin-bottom: 8px; }
+  .empty-card p { font-size: .9rem; color: var(--dim); line-height: 1.6; margin-bottom: 20px; }
+
+  /* task cards */
+  .task-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+  .task-card { background: var(--card); border: 1px solid var(--line); padding: 18px; box-shadow: var(--shadow); display: flex; flex-direction: column; }
+  .tc-top { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .tc-name { font-size: 1.02rem; font-weight: 700; letter-spacing: -.01em; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tc-badge { font-size: .6rem; text-transform: uppercase; letter-spacing: .05em; font-weight: 700; color: #0d9668; background: rgba(16,185,129,.13); padding: 2px 8px; }
+  .tc-desc { font-size: .8rem; color: var(--dim); line-height: 1.5; margin-bottom: 14px; flex: 1;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .tc-io { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin-bottom: 16px; }
+  .tc-io-lbl { font-size: .6rem; text-transform: uppercase; letter-spacing: .05em; color: var(--faint); font-weight: 700; margin-right: 2px; }
+  .tc-ic { width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--line); }
+  .tc-arrow { color: var(--faint); margin: 0 4px; }
+  .tc-actions { display: flex; gap: 7px; }
+  .tc-actions button { flex: 1; }
+  .tc-del:hover { background: #fef2f2 !important; border-color: #f6caca !important; color: var(--bad) !important; }
+
+  /* settings */
+  .settings { display: flex; flex-direction: column; gap: 16px; max-width: 640px; }
+  .set-card { background: var(--card); border: 1px solid var(--line); padding: 20px; box-shadow: var(--shadow); }
+  .set-card h3 { font-size: .82rem; text-transform: uppercase; letter-spacing: .06em; color: var(--faint); font-weight: 700; margin-bottom: 2px; }
+  .set-card label { display: block; font-size: .8rem; font-weight: 600; margin: 14px 0 6px; }
+  .set-card .opt { color: var(--faint); font-weight: 400; text-transform: none; letter-spacing: 0; }
+  .set-card select { max-width: none; }
 
   /* ---------- canvas + stat row ---------- */
   .canvas-wrap { display: flex; flex-direction: column; gap: 14px; min-width: 0; min-height: 0; }
@@ -144,6 +235,24 @@
   .modal label { display: block; font-size: .82rem; font-weight: 600; margin: 16px 0 6px; }
   .modal label .opt { color: var(--faint); font-weight: 400; }
   .modal textarea { min-height: 0; }
+  /* --- multi-port wizard: line + 3 icons on the left, everything stacked on the right --- */
+  .modal.wz { width: min(800px, 96vw); }
+  .wz-grid { position: relative; display: grid; grid-template-columns: 40px 1fr; column-gap: 16px; row-gap: 22px; margin-top: 18px; }
+  .wz-line { position: absolute; left: 19px; top: 17px; bottom: 17px; width: 2px; background: var(--line2); border-radius: 2px; }
+  .wz-ico { grid-column: 1; align-self: start; position: relative; z-index: 1; width: 34px; height: 34px; border-radius: 10px;
+            border: 1.5px solid var(--line2); background: #fff; display: flex; align-items: center; justify-content: center; font-size: 1rem; color: var(--dim); }
+  .wz-ico.ok { border-color: var(--ok); color: var(--ok); box-shadow: 0 0 0 3px rgba(16,185,129,.12); }
+  .wz-ico.err { border-color: var(--bad); color: var(--bad); box-shadow: 0 0 0 3px rgba(239,68,68,.12); }
+  .wz-sec { grid-column: 2; min-width: 0; }
+  .wz-sec h4 { font-size: .92rem; font-weight: 700; margin: 3px 0 2px; }
+  .wz-sec .hint { margin-bottom: 9px; }
+  .pe-row { display: grid; gap: 6px; align-items: center; margin-bottom: 6px; grid-template-columns: 1fr 150px 30px; }
+  .pe-row.out { grid-template-columns: 1fr 140px 1fr 30px; }
+  .pe-row input, .pe-row select { padding: 7px 9px; border-radius: 8px; border: 1px solid var(--line2); font: inherit; background: #fcfcfd; width: 100%; }
+  .pe-row select { padding-right: 28px; background-position: right 9px center; }
+  .pe-x { color: var(--bad); background: #fff; border: 1px solid var(--line2); border-radius: 8px; height: 32px; cursor: pointer; font-weight: 700; }
+  .pe-x:hover { background: #fef2f2; }
+  .wz-add { margin-top: 2px; }
 
   ::-webkit-scrollbar { width: 9px; height: 9px; }
   ::-webkit-scrollbar-thumb { background: #d3d7de; }
@@ -156,30 +265,35 @@
 <body>
 <header>
   <div class="brand"><span class="logo">&#8635;</span> CloseLoop</div>
-  <select id="taskSel" onchange="switchTask(this.value)" title="Switch task"></select>
-  <button class="btn-ghost btn-sm" onclick="openWizard()">+ New task</button>
+  <nav class="nav">
+    <button class="navlink active" data-view="dashboard" onclick="showView('dashboard')">Dashboard</button>
+    <button class="navlink" data-view="tasks" onclick="showView('tasks')">Tasks</button>
+    <button class="navlink" data-view="settings" onclick="showView('settings')">Settings</button>
+  </nav>
   <div class="spacer"></div>
+  <select id="taskSel" onchange="switchTask(this.value)" title="Switch task"></select>
   <span class="status" id="s1dot"><span class="dot" id="s1dotc"></span> S1 Jev</span>
   <span class="status" id="s2dot"><span class="dot" id="s2dotc"></span> S2 LLM</span>
 </header>
 
-<div class="app">
+<div id="viewDashboard" class="view">
+  <div id="emptyState" style="display:none">
+    <div class="empty-card">
+      <div class="empty-ic"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 12l9 4 9-4M3 17l9 4 9-4"/></svg></div>
+      <h2>No tasks yet</h2>
+      <p>Create your first self-improving task — define its inputs, describe what it should do, and set its outputs. The system builds the workflow and improves it over each loop.</p>
+      <button class="btn-primary" onclick="openWizard()">+ Create a task</button>
+    </div>
+  </div>
+  <div class="app">
   <!-- LEFT rail: controls -->
   <aside class="rail left">
     <div class="card">
-      <h3>Feed task inputs</h3>
-      <p class="lead">Each line is one loop — a new instance of the same kind of task. The system runs it, scores it, and improves itself.</p>
-      <textarea id="input" spellcheck="false" data-gramm="false" data-gramm_editor="false" data-enable-grammarly="false"
-        placeholder="One task input per line…"></textarea>
-      <div class="field-row">
-        <button class="btn-primary" id="runBtn" onclick="runBatch()" style="flex:1">&#9654;&nbsp; Run inputs</button>
-      </div>
-      <div class="field-row">
-        <button class="btn-ghost" id="streamBtn" onclick="runStream()" style="flex:1">Auto-generate &amp; run</button>
-        <input type="number" id="streamN" min="1" max="20" value="5" title="How many to generate">
-      </div>
-      <div class="field-row">
-        <button class="btn-ghost btn-sm" id="shapeBtn" onclick="forceShape()" style="flex:1" title="Ask S2 to review and improve the workflow now">Improve workflow now</button>
+      <h3>Task</h3>
+      <div id="taskInfo"></div>
+      <div class="field-row" style="margin-top:14px; align-items:stretch">
+        <button class="btn-primary" onclick="openFeed('manual')" style="flex:1; display:inline-flex; align-items:center; justify-content:center"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:7px"><path d="M12 3v10"/><path d="M8 9l4 4 4-4"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>Feed inputs</button>
+        <button class="btn-ghost" id="shapeBtn" onclick="forceShape()" style="flex:1; display:inline-flex; align-items:center; justify-content:center" title="Ask S2 to review and improve the workflow now"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/></svg>Improve</button>
       </div>
       <div class="hint" id="lastShaping" style="margin-top:12px"></div>
     </div>
@@ -206,6 +320,7 @@
         <span><i style="background:var(--s1)"></i>decision</span>
         <span><i style="background:var(--s2)"></i>generate</span>
         <span><i style="background:var(--code)"></i>code</span>
+        <span><i style="background:#06b6d4"></i>tool</span>
       </div>
       <div class="verbadge" id="verBadge"></div>
       <div class="runpill" id="progWrap" hidden><span class="spin"></span><span class="rtxt" id="plabel"></span><span class="rbar"><i id="pbar"></i></span></div>
@@ -226,28 +341,89 @@
       <div id="nodeDetail"><div class="insp-empty">Click any box in the graph to see what it does — the questions it asks, the prompt it runs, or the code it executes, plus what it produced on the last loop.</div></div>
     </div>
   </aside>
-</div>
+  </div><!-- /.app -->
+</div><!-- /#viewDashboard -->
+
+<div id="viewTasks" class="view page" hidden><div id="tasksPage"></div></div>
+<div id="viewSettings" class="view page" hidden><div id="settingsPage"></div></div>
 
 <!-- New-task wizard -->
 <div id="wizard" class="overlay" hidden>
-  <div class="modal">
+  <div class="modal wz">
     <h2>Create a new task</h2>
-    <p class="hint" style="margin:8px 0 4px">Describe your task in plain language. CloseLoop designs the workflow, runs it, and improves it by itself.</p>
     <label>Task name</label>
-    <input type="text" id="wName" spellcheck="false" placeholder="e.g. Email triage">
-    <label>1 &middot; What should the system do?</label>
-    <textarea id="wDesc" rows="3" spellcheck="false" placeholder="e.g. Read an incoming customer email and write a short, polite reply that answers the sender's question."></textarea>
-    <label>2 &middot; What does a good result look like?</label>
-    <textarea id="wOut" rows="2" spellcheck="false" placeholder="e.g. A reply under 120 words that addresses the question and ends with a clear next step."></textarea>
-    <label>3 &middot; How should results be judged? <span class="opt">(optional)</span></label>
-    <textarea id="wMetric" rows="2" spellcheck="false" placeholder="Leave empty to judge results against the task description."></textarea>
-    <label>Example inputs <span class="opt">(optional but recommended — one per line)</span></label>
-    <textarea id="wExamples" rows="3" spellcheck="false" placeholder="Hi, I was double charged this month, please help.&#10;How do I reset my password?"></textarea>
-    <div class="field-row" style="justify-content:flex-end; margin-top:18px">
+    <input type="text" id="wName" spellcheck="false" placeholder="e.g. Contract review">
+
+    <div class="wz-grid">
+      <span class="wz-line" aria-hidden="true"></span>
+
+      <div class="wz-ico" id="wIcoIn" title="Inputs">&#9634;</div>
+      <section class="wz-sec">
+        <h4>Inputs</h4>
+        <div class="hint">What the system receives. Add one or more input ports, each with a type. One bundle of inputs = one loop (a file is one whole input).</div>
+        <div id="wInputs"></div>
+        <button class="btn-ghost btn-sm wz-add" onclick="wizAddInput()">+ add input</button>
+      </section>
+
+      <div class="wz-ico" id="wIcoTree" title="Tree">&#8997;</div>
+      <section class="wz-sec">
+        <h4>Tree</h4>
+        <div class="hint">What the workflow should do. S2 designs the decision/action tree from this, then it self-improves over loops.</div>
+        <textarea id="wDesc" rows="3" spellcheck="false" oninput="wizStatus()" placeholder="e.g. Read the contract and the policy, decide approve or reject with a reason, and write a short risk summary."></textarea>
+        <label style="margin-top:10px">Example inputs <span class="opt">(optional — one per line)</span></label>
+        <textarea id="wExamples" rows="2" spellcheck="false" placeholder="one example task input per line"></textarea>
+      </section>
+
+      <div class="wz-ico" id="wIcoOut" title="Output">&#9650;</div>
+      <section class="wz-sec">
+        <h4>Output</h4>
+        <div class="hint">What the system produces. Add one or more output ports; optionally describe what makes each one good (its metric).</div>
+        <div id="wOutputs"></div>
+        <button class="btn-ghost btn-sm wz-add" onclick="wizAddOutput()">+ add output</button>
+      </section>
+    </div>
+
+    <div class="field-row" style="justify-content:flex-end; margin-top:20px">
       <button class="btn-ghost" onclick="closeWizard()">Cancel</button>
       <button class="btn-primary" id="wCreate" onclick="createTask()">Create task</button>
     </div>
     <div class="hint" id="wStatus" style="margin-top:12px"></div>
+  </div>
+</div>
+
+<!-- Feed-inputs modal: manual entry + API -->
+<div id="feedModal" class="overlay" hidden>
+  <div class="modal feedm">
+    <h2>Feed task inputs</h2>
+    <div class="tabs">
+      <button class="tab active" id="feedTabManual" onclick="feedTab('manual')">Manual entry</button>
+      <button class="tab" id="feedTabApi" onclick="feedTab('api')">Use the API</button>
+    </div>
+    <div id="feedPaneManual">
+      <p class="hint" id="feedHint" style="margin-bottom:12px"></p>
+      <div id="feedForm"></div>
+      <div class="field-row" style="justify-content:flex-end; margin-top:18px">
+        <button class="btn-ghost" onclick="closeFeed()">Cancel</button>
+        <button class="btn-primary" id="runBtn" onclick="runBatch()">&#9654;&nbsp; Run</button>
+      </div>
+    </div>
+    <div id="feedPaneApi" hidden></div>
+  </div>
+</div>
+
+<!-- Edit-task modal -->
+<div id="editModal" class="overlay" hidden>
+  <div class="modal">
+    <h2>Edit task</h2>
+    <label>Task name</label>
+    <input type="text" id="etName" spellcheck="false">
+    <label>Description</label>
+    <textarea id="etDesc" rows="4" spellcheck="false"></textarea>
+    <p class="hint" style="margin-top:10px">The input/output contract is fixed once a task is created — create a new task to change its I/O.</p>
+    <div class="field-row" style="justify-content:flex-end; margin-top:18px">
+      <button class="btn-ghost" onclick="closeEdit()">Cancel</button>
+      <button class="btn-primary" onclick="saveEdit()">Save changes</button>
+    </div>
   </div>
 </div>
 
@@ -259,13 +435,40 @@ let graphView = null, graphBounds = null, graphFitKey = null;
 let panning = false, panStart = null, didPan = false;
 let deepLinkDone = false;
 let shownTree = null, shownVersion = null, shownHistorical = false;
+// feed-inputs form state: 'batch' = one text port, many lines; 'bundle' = one control per port
+let feedMode = 'batch', feedFormKey = null, feedHasAsset = false, feedFiles = {};
+let view = 'dashboard', editingTask = null;
+const ASSET_TYPES = ['table', 'document', 'image', 'audio'];
 const treeCache = {};
 let graphOrient = localStorage.getItem('closeloop.orient') || 'h';
 const ICON_ROWS = '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="1.5" y="6.25" width="3.5" height="3.5"/><rect x="6.25" y="6.25" width="3.5" height="3.5"/><rect x="11" y="6.25" width="3.5" height="3.5"/></svg>';
 const ICON_COLS = '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="6.25" y="1.5" width="3.5" height="3.5"/><rect x="6.25" y="6.25" width="3.5" height="3.5"/><rect x="6.25" y="11" width="3.5" height="3.5"/></svg>';
 
-const KIND_COLOR = { jev: '#3b82f6', llm: '#8b5cf6', code: '#10b981' };
-const KIND_TAG = { jev: 'decision', llm: 'generate', code: 'code' };
+const KIND_COLOR = { jev: '#3b82f6', llm: '#8b5cf6', code: '#10b981', tool: '#06b6d4' };
+const KIND_TAG = { jev: 'decision', llm: 'generate', code: 'code', tool: 'tool' };
+// short, human descriptions of the port types (mirrors the I/O boundary registry)
+const TYPE_DOC = {
+  text: 'plain text', json: 'a JSON record', table: 'a spreadsheet (rows × columns)',
+  document: 'a document file → extracted text', image: 'an image file', audio: 'an audio file',
+  table_enrich: 'a spreadsheet with new columns added', action: 'an action + a record of it'
+};
+// per-type colour + line icon, for the graphical port rows
+const TYPE_COLOR = { text: '#64748b', json: '#8b5cf6', table: '#10b981', document: '#f59e0b',
+  image: '#ec4899', audio: '#06b6d4', table_enrich: '#0ea5e9', action: '#eab308' };
+const TYPE_PATHS = {
+  text: '<path d="M4 6h16M4 12h16M4 18h10"/>',
+  json: '<path d="M9 5l-4 4 4 4M15 15l4-4-4-4"/>',
+  table: '<rect x="3" y="4" width="18" height="16" rx="1"/><path d="M3 10h18M9 4v16"/>',
+  document: '<path d="M14 3H6v18h12V7z"/><path d="M14 3v4h4"/>',
+  image: '<rect x="3" y="4" width="18" height="16" rx="1"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 16l-5-5L5 21"/>',
+  audio: '<path d="M11 5L6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/>',
+  table_enrich: '<rect x="3" y="4" width="18" height="16" rx="1"/><path d="M3 10h18M9 4v16M15 13v4M13 15h4"/>',
+  action: '<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>',
+};
+function typeIcon(t, size) {
+  const s = size || 16;
+  return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${TYPE_PATHS[t] || TYPE_PATHS.json}</svg>`;
+}
 
 /* ============================ data ============================ */
 async function refresh() {
@@ -321,22 +524,283 @@ function statusDot(id, mock, fallback) {
 }
 function render() {
   const s = STATE;
-  if (!s || !shownTree) { document.getElementById('graph').innerHTML = '<div style="padding:36px;color:var(--faint)">No task yet. Click “+ New task”.</div>'; return; }
+  const hasTask = !!(s && s.tasks && s.tasks.length && s.task);
+  const app = document.querySelector('#viewDashboard .app'), es = document.getElementById('emptyState');
+  if (app) app.style.display = hasTask ? 'grid' : 'none';
+  if (es) es.style.display = hasTask ? 'none' : 'flex';
+  if (!hasTask) return;
+  if (!shownTree) { document.getElementById('graph').innerHTML = '<div style="padding:36px;color:var(--faint)">No workflow yet for this task.</div>'; return; }
   const vb = document.getElementById('verBadge');
   if (shownHistorical && selectedRun) { vb.className = 'verbadge hist'; vb.textContent = `viewing loop #${STATE.runs.indexOf(selectedRun) + 1}'s workflow · ${shownVersion}`; }
   else { vb.className = 'verbadge'; vb.textContent = `current workflow · ${shownVersion || '—'}`; }
-  statusDot('s1dot', s.mode.jev_mock, s.mode.jev_fallback);
-  statusDot('s2dot', s.mode.openai_mock, s.mode.openai_fallback);
+  statusDot('s1dot', false, (s.models || {}).jev);
+  statusDot('s2dot', false, (s.models || {}).openai);
   const m = s.metrics;
   document.getElementById('mRuns').textContent = m.runs;
   document.getElementById('mPass').textContent = m.pass_rate == null ? '–' : Math.round(m.pass_rate * 100) + '%';
   document.getElementById('mEsc').textContent = m.escalation_rate == null ? '–' : Math.round(m.escalation_rate * 100) + '%';
   document.getElementById('mShape').textContent = m.shaping_edits;
   updateOrientBtn();
+  renderTaskInfo();
+  renderFeedForm();
   renderSpark();
   renderGraph();
   renderNodeInspector();
   renderHistory();
+}
+
+/* ---------------------------- TASK panel ---------------------------- */
+// Left-rail summary of the task: name, description, and typed input/output ports.
+function renderTaskInfo() {
+  const el = document.getElementById('taskInfo'); if (!el) return;
+  const meta = taskMeta(), m = STATE.metrics || {};
+  const row = p => {
+    const c = TYPE_COLOR[p.type] || '#64748b';
+    return `<div class="ti-port2" title="${esc(p.metric ? p.name + ' — ' + p.metric : p.name + ' · ' + p.type)}">
+      <span class="ti-ic" style="color:${c};background:${c}14;border-color:${c}44">${typeIcon(p.type, 13)}</span>
+      <span class="ti-pname">${esc(p.name)}</span><span class="ti-ptype">${esc(p.type)}</span></div>`;
+  };
+  const grp = (lbl, ports) => `<div class="ti-group"><div class="ti-group-lbl">${lbl}</div><div class="ti-ports">${ports.length ? ports.map(row).join('') : '<span class="hint">—</span>'}</div></div>`;
+  const si = p => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+  const fact = (icon, txt, title) => `<span class="ti-fact" title="${esc(title || '')}">${icon}${esc(txt)}</span>`;
+  const iVer = si('<path d="M6 3v12"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="6" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/>');
+  const iTok = si('<path d="M6 9h12M6 15h12M10 3l-2 18M16 3l-2 18"/>');
+  const iConf = si('<path d="M4 13a8 8 0 0 1 16 0"/><path d="M12 13l4-3"/>');
+  let h = `<div class="ti-name">${esc(meta.name || STATE.task || '—')}</div>`;
+  if (meta.description) h += `<p class="ti-desc">${esc(meta.description)}</p>`;
+  h += grp('Inputs', inPorts()) + grp('Outputs', outPorts());
+  h += `<div class="ti-meta">`
+    + fact(iVer, STATE.version || '—', 'current workflow version')
+    + (m.cost_tokens ? fact(iTok, fmtTokens(m.cost_tokens) + ' tok', 'tokens used so far') : '')
+    + (m.avg_confidence != null ? fact(iConf, Math.round(m.avg_confidence * 100) + '% conf', 'average S1 confidence') : '')
+    + `</div>`;
+  el.innerHTML = h;
+}
+function fmtTokens(n) { return n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1) + 'k' : String(n); }
+
+/* ---------------------------- feed-inputs form (modal) ---------------------------- */
+// Build one control per input port from the contract. Rebuilds only when the
+// task/contract changes, so typed values & uploads survive per-loop refreshes.
+function renderFeedForm() {
+  const ins = inPorts();
+  const key = currentTask + '|' + JSON.stringify(ins);
+  if (key === feedFormKey) return;
+  feedFormKey = key; feedFiles = {};
+  feedHasAsset = ins.some(p => ASSET_TYPES.includes(p.type));
+  const form = document.getElementById('feedForm'), runBtn = document.getElementById('runBtn'), hint = document.getElementById('feedHint');
+  if (form) {
+    if (!ins.length) { form.innerHTML = ''; }
+    else if (ins.length === 1 && ins[0].type === 'text') {
+      feedMode = 'batch';
+      if (hint) hint.textContent = 'Each line is one loop — a new instance of the same kind of task.';
+      form.innerHTML = `<textarea id="input" class="feed-in" spellcheck="false" data-gramm="false" style="min-height:120px" placeholder="One task input per line…"></textarea>`;
+      if (runBtn) runBtn.innerHTML = '&#9654;&nbsp; Run inputs';
+    } else {
+      feedMode = 'bundle';
+      if (hint) hint.textContent = 'Fill each input port, then run one loop.';
+      form.innerHTML = ins.map((p, i) => feedFieldHTML(p, i)).join('');
+      if (runBtn) runBtn.innerHTML = '&#9654;&nbsp; Run one loop';
+    }
+  }
+}
+// open/close the feed modal + tab switching
+function openFeed(tab) {
+  feedFormKey = null;            // force a fresh form (clears prior values)
+  renderFeedForm();
+  feedTab(tab || 'manual');
+  document.getElementById('feedModal').hidden = false;
+}
+function closeFeed() { const m = document.getElementById('feedModal'); if (m) m.hidden = true; }
+function feedTab(which) {
+  const man = which !== 'api';
+  document.getElementById('feedPaneManual').hidden = !man;
+  document.getElementById('feedPaneApi').hidden = man;
+  document.getElementById('feedTabManual').classList.toggle('active', man);
+  document.getElementById('feedTabApi').classList.toggle('active', !man);
+  if (!man) renderFeedApi();
+}
+// API tab: build copy-ready calls for THIS task from its contract
+function feedApiText() {
+  const task = STATE.task, ins = inPorts(), origin = location.origin;
+  let curl = `curl -X POST ${origin}/api/run \\\n  -F task=${task}`;
+  ins.forEach(p => {
+    if (ASSET_TYPES.includes(p.type)) curl += ` \\\n  -F ${p.name}=@/path/to/${p.name}`;
+    else if (p.type === 'json') curl += ` \\\n  -F '${p.name}={"key":"value"}'`;
+    else curl += ` \\\n  -F ${p.name}="your ${p.name} text"`;
+  });
+  const bundle = {};
+  ins.forEach(p => bundle[p.name] = ASSET_TYPES.includes(p.type) ? '<asset_id>' : (p.type === 'json' ? { key: 'value' } : `your ${p.name} text`));
+  const jsonCurl = `curl -X POST ${origin}/api/run \\\n  -H "Content-Type: application/json" \\\n  -d '${JSON.stringify({ task, bundle })}'`;
+  return { curl, jsonCurl };
+}
+function renderFeedApi() {
+  const { curl, jsonCurl } = feedApiText();
+  const hasFile = inPorts().some(p => ASSET_TYPES.includes(p.type));
+  let h = apiBlock('multipart · files inline', curl);
+  h += hasFile
+    ? `<p class="hint">File outputs return an <code>asset_id</code> — fetch via <code>GET /api/download?asset=&lt;id&gt;</code>.</p>`
+    : apiBlock('JSON body', jsonCurl);
+  document.getElementById('feedPaneApi').innerHTML = h;
+}
+function apiBlock(title, body) {
+  return `<div class="api-block"><div class="api-head">${esc(title)}<button class="btn-ghost btn-sm" onclick="copyBlock(this)">Copy</button></div><pre>${esc(body)}</pre></div>`;
+}
+function copyBlock(btn) {
+  const pre = btn.closest('.api-block').querySelector('pre');
+  navigator.clipboard.writeText(pre.textContent).then(() => {
+    const t = btn.textContent; btn.textContent = 'Copied'; setTimeout(() => { btn.textContent = t; }, 1200);
+  });
+}
+
+/* ============================ views: nav / tasks / settings ============================ */
+function showView(v) {
+  view = v;
+  document.getElementById('viewDashboard').hidden = v !== 'dashboard';
+  document.getElementById('viewTasks').hidden = v !== 'tasks';
+  document.getElementById('viewSettings').hidden = v !== 'settings';
+  document.querySelectorAll('.navlink').forEach(a => a.classList.toggle('active', a.dataset.view === v));
+  document.getElementById('taskSel').style.display = v === 'dashboard' ? '' : 'none';
+  if (v === 'tasks') renderTasksPage();
+  else if (v === 'settings') renderSettingsPage();
+  else render();
+}
+
+/* ---- Tasks management page ---- */
+function ioIcons(ports) {
+  return (ports || []).map(p => {
+    const c = TYPE_COLOR[p.type] || '#64748b';
+    return `<span class="tc-ic" style="color:${c};border-color:${c}44" title="${esc(p.name)} · ${esc(p.type)}">${typeIcon(p.type, 13)}</span>`;
+  }).join('') || '<span class="hint">—</span>';
+}
+function taskCard(t) {
+  const c = t.contract || { inputs: [], outputs: [] };
+  const active = t.id === STATE.task;
+  return `<div class="task-card">
+    <div class="tc-top"><div class="tc-name">${esc(t.name || t.id)}</div>${active ? '<span class="tc-badge">active</span>' : ''}</div>
+    <p class="tc-desc">${esc(t.description || 'No description.')}</p>
+    <div class="tc-io"><span class="tc-io-lbl">in</span>${ioIcons(c.inputs)}<span class="tc-arrow">→</span><span class="tc-io-lbl">out</span>${ioIcons(c.outputs)}</div>
+    <div class="tc-actions">
+      <button class="btn-ghost btn-sm" onclick="openTask('${esc(t.id)}')">Open</button>
+      <button class="btn-ghost btn-sm" onclick="openEditTask('${esc(t.id)}')">Edit</button>
+      <button class="btn-ghost btn-sm tc-del" onclick="deleteTask('${esc(t.id)}')">Delete</button>
+    </div></div>`;
+}
+function renderTasksPage() {
+  const el = document.getElementById('tasksPage');
+  const tasks = STATE.tasks || [];
+  let h = `<div class="page-head"><h1>Tasks</h1><button class="btn-primary" onclick="openWizard()">+ Create task</button></div>`;
+  h += tasks.length
+    ? `<div class="task-grid">${tasks.map(taskCard).join('')}</div>`
+    : `<div class="empty-card" style="margin:32px auto"><h2>No tasks yet</h2><p>Create your first task to get started.</p><button class="btn-primary" onclick="openWizard()">+ Create a task</button></div>`;
+  el.innerHTML = h;
+}
+function openTask(id) { showView('dashboard'); switchTask(id); }
+async function deleteTask(id) {
+  const t = (STATE.tasks || []).find(x => x.id === id);
+  if (!confirm(`Delete task "${(t && t.name) || id}"?\nThis permanently removes its workflow, all versions, runs and history.`)) return;
+  const r = await fetch('/api/delete-task', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ task: id }) });
+  const data = await r.json();
+  if (data.error) { alert(data.error); return; }
+  if (currentTask === id) { currentTask = ''; selectedRun = null; selectedNode = null; feedFormKey = null; }
+  await refresh();
+  if (view === 'tasks') renderTasksPage();
+}
+
+/* ---- Edit-task modal ---- */
+function openEditTask(id) {
+  const t = (STATE.tasks || []).find(x => x.id === id); if (!t) return;
+  editingTask = id;
+  document.getElementById('etName').value = t.name || '';
+  document.getElementById('etDesc').value = t.description || '';
+  document.getElementById('editModal').hidden = false;
+}
+function closeEdit() { document.getElementById('editModal').hidden = true; }
+async function saveEdit() {
+  if (!editingTask) return;
+  const r = await fetch('/api/update-task', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ task: editingTask, name: document.getElementById('etName').value, description: document.getElementById('etDesc').value }) });
+  const data = await r.json();
+  if (data.error) { alert(data.error); return; }
+  closeEdit();
+  await refresh();
+  if (view === 'tasks') renderTasksPage();
+}
+
+/* ---- Settings page ---- */
+async function renderSettingsPage() {
+  const el = document.getElementById('settingsPage');
+  el.innerHTML = `<div class="page-head"><h1>Settings</h1></div><p class="hint">Loading…</p>`;
+  let cfg;
+  try { cfg = await (await fetch('/api/config')).json(); }
+  catch (e) { el.innerHTML = `<div class="page-head"><h1>Settings</h1></div><p class="hint">Could not load config.</p>`; return; }
+  el.innerHTML = `<div class="page-head"><h1>Settings</h1></div>` + settingsForm(cfg);
+}
+function settingsForm(cfg) {
+  const keyField = (id, info) => `<input type="password" id="${id}" autocomplete="off" placeholder="${info.set ? 'set (' + esc(info.hint) + ') — leave blank to keep' : 'not set — paste a key'}">`;
+  const opt = (l, sel) => `<option ${l === sel ? 'selected' : ''}>${l}</option>`;
+  const t = cfg.tools || {};
+  return `<div class="settings">
+    <div class="set-card"><h3>System 2 · Generator (OpenAI)</h3>
+      <label>Model</label><input type="text" id="setOaModel" value="${esc(cfg.openai.model || '')}">
+      <label>API key</label>${keyField('setOaKey', cfg.openai.key)}
+      <div class="hint" style="margin-top:8px">Endpoint: ${esc(cfg.openai.base_url || '—')}</div>
+    </div>
+    <div class="set-card"><h3>System 1 · Judge (TypeSafe Jev)</h3>
+      <label>Model</label><input type="text" id="setJevModel" value="${esc(cfg.jev.model || '')}">
+      <label>API key</label>${keyField('setJevKey', cfg.jev.key)}
+      <div class="hint" style="margin-top:8px">Endpoint: ${esc(cfg.jev.base_url || '—')}</div>
+    </div>
+    <div class="set-card"><h3>Logging</h3>
+      <label>Console level</label>
+      <select id="setLog">${['DEBUG', 'INFO', 'WARNING', 'ERROR'].map(l => opt(l, cfg.logging.console_level)).join('')}</select>
+    </div>
+    <div class="set-card"><h3>Multimodal tool models <span class="opt">— optional, for image/audio ports</span></h3>
+      <label>Vision model</label><input type="text" id="setVision" value="${esc(t.vision_model || '')}" placeholder="caption / OCR">
+      <label>Transcribe model</label><input type="text" id="setTranscribe" value="${esc(t.transcribe_model || '')}" placeholder="speech-to-text">
+      <label>Image model</label><input type="text" id="setImage" value="${esc(t.image_model || '')}" placeholder="image generation">
+      <label>Text-to-speech model</label><input type="text" id="setTts" value="${esc(t.tts_model || '')}">
+    </div>
+    <div class="field-row"><button class="btn-primary" onclick="saveSettings()">Save settings</button><span class="hint" id="setStatus"></span></div>
+  </div>`;
+}
+async function saveSettings() {
+  const v = id => document.getElementById(id).value;
+  const st = document.getElementById('setStatus'); st.textContent = 'Saving…';
+  const body = {
+    openai_model: v('setOaModel'), jev_model: v('setJevModel'), console_level: v('setLog'),
+    openai_key: v('setOaKey'), jev_key: v('setJevKey'),
+    tools: { vision_model: v('setVision'), transcribe_model: v('setTranscribe'), image_model: v('setImage'), tts_model: v('setTts') },
+  };
+  try {
+    const r = await fetch('/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const data = await r.json();
+    if (data.error) { st.textContent = '✗ ' + data.error; return; }
+    st.textContent = '✓ Saved & reloaded';
+    document.getElementById('setOaKey').value = ''; document.getElementById('setJevKey').value = '';
+    refresh();
+  } catch (e) { st.textContent = '✗ save failed'; }
+}
+function feedFieldHTML(p, i) {
+  const c = TYPE_COLOR[p.type] || '#64748b';
+  const lbl = `<label class="feed-lbl"><span style="color:${c}">${typeIcon(p.type, 14)}</span>${esc(p.name)} <span class="opt">${esc(p.type)}</span></label>`;
+  if (p.type === 'json')
+    return lbl + `<textarea class="feed-in" data-port="${esc(p.name)}" data-type="json" spellcheck="false" placeholder='{ "key": "value" }'></textarea>`;
+  if (ASSET_TYPES.includes(p.type))
+    return lbl + `<label class="feed-file" id="feedFile${i}"><input type="file" data-port="${esc(p.name)}" data-type="${esc(p.type)}" onchange="feedUpload(${i}, this)" hidden><span id="feedBtn${i}">Choose file</span></label>`;
+  return lbl + `<textarea class="feed-in" data-port="${esc(p.name)}" data-type="text" spellcheck="false" placeholder="${esc(p.name)}…"></textarea>`;
+}
+async function feedUpload(i, el) {
+  const lab = document.getElementById('feedFile' + i), btn = document.getElementById('feedBtn' + i), port = el.dataset.port, f = el.files[0];
+  lab.classList.remove('ok', 'err');
+  if (!f) { delete feedFiles[port]; btn.textContent = 'Choose file'; return; }
+  btn.textContent = 'Uploading…';
+  try {
+    const r = await fetch('/api/upload', { method: 'POST', headers: { 'Content-Type': f.type || 'application/octet-stream', 'X-Filename': f.name }, body: f });
+    const data = await r.json();
+    if (data.error || !data.asset) { btn.textContent = data.error || 'Upload failed'; lab.classList.add('err'); return; }
+    feedFiles[port] = { asset_id: data.asset.asset_id, name: data.asset.name };
+    btn.textContent = '✓ ' + data.asset.name; lab.classList.add('ok');
+  } catch (e) { btn.textContent = 'Upload failed'; lab.classList.add('err'); }
 }
 
 function renderSpark() {
@@ -471,28 +935,122 @@ function renderGraph() {
   // dotted grid that pans/zooms together with the graph
   svg += `<rect x="-6000" y="-6000" width="16000" height="16000" fill="url(#dots)"/>`;
 
-  function edgePath(a, b, warn, onp, fail) {
-    const stroke = fail ? '#ef4444' : (onp ? '#3b82f6' : (warn ? '#f59e0b' : '#cdd2db'));
-    const w = (onp || fail) ? 2.2 : 1.5;
-    const dash = (warn && !onp && !fail) ? 'stroke-dasharray="5,4"' : '';
-    const marker = `marker-end="url(#${fail ? 'arrR' : (onp ? 'arrB' : (warn ? 'arrW' : 'arr'))})"`;
-    let d;
-    if (H_MODE) {
-      const x1 = a.x + W, y1 = a.y + H / 2, x2 = b.x, y2 = b.y + H / 2, dx = Math.max(30, (x2 - x1) / 2);
-      d = `M${x1},${y1} C${x1 + dx},${y1} ${x2 - dx},${y2} ${x2},${y2}`;
-    } else {
-      const x1 = a.x + W / 2, y1 = a.y + H, x2 = b.x + W / 2, y2 = b.y, dy = Math.max(24, (y2 - y1) / 2);
-      d = `M${x1},${y1} C${x1},${y1 + dy} ${x2},${y2 - dy} ${x2},${y2}`;
-    }
-    return `<path d="${d}" fill="none" stroke="${stroke}" stroke-width="${w}" ${dash} ${marker}/>`;
+  // ---- 4-side anchor routing ------------------------------------------
+  // Every node exposes anchors on its top/bottom/left/right edges. Edges
+  // between adjacent ranks take a short perpendicular curve; edges that skip
+  // ranks or run backward detour through an outer gutter (a lane past all the
+  // node columns) so they clear the boxes in between; edges that share a side
+  // are fanned into evenly spaced slots so they never leave from one point.
+  const posAll = Object.assign({ _task: { x: taskNode.x, y: taskNode.y } }, pos);
+  stations.forEach(s => posAll[s.id] = { x: s.x, y: s.y });
+  const rank = Object.assign({ _task: -1, _result: maxL + 1, _eval: maxL + 2, _shape: maxL + 3 }, level);
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const p of Object.values(posAll)) {
+    minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x + W);
+    minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y + H);
   }
-  function edgeLabel(a, b, text, warn) {
-    if (!text) return '';
-    const x = H_MODE ? (a.x + W + b.x) / 2 : (a.x + b.x + W) / 2;
-    const y = H_MODE ? (a.y + b.y + H) / 2 - 6 : (a.y + H + b.y) / 2 - 1;
-    const w = text.length * 6.2 + 12;
-    return `<rect x="${x - w / 2}" y="${y - 10}" width="${w}" height="16" fill="#ffffff" stroke="${warn ? '#f6d99a' : '#e7e9ee'}"/>` +
-           `<text x="${x}" y="${y + 1.5}" fill="${warn ? '#c77c0a' : '#7b8494'}" text-anchor="middle" font-size="10">${esc(text)}</text>`;
+  const GUT = 40;
+  const anchorPt = (p, side, t) =>
+      side === 'right'  ? { x: p.x + W,     y: p.y + H * t }
+    : side === 'left'   ? { x: p.x,         y: p.y + H * t }
+    : side === 'top'    ? { x: p.x + W * t, y: p.y }
+    :                     { x: p.x + W * t, y: p.y + H };  // bottom
+  const sideNormal = s =>
+      s === 'right' ? { x: 1, y: 0 } : s === 'left' ? { x: -1, y: 0 }
+    : s === 'bottom' ? { x: 0, y: 1 } : { x: 0, y: -1 };
+
+  // Build the full edge list (task feed, tree edges, terminal -> result,
+  // stations); resolve each edge's exit/enter side (+ gutter for detours),
+  // then hand out per-side slots.
+  const drawn = [];
+  const gutN = { L: 0, R: 0, T: 0, B: 0 };   // fan multiple detours off each gutter lane
+  function addEdge(from, to, label, o) {
+    const a = posAll[from], b = posAll[to];
+    if (!a || !b) return;
+    const dr = (rank[to] == null ? 0 : rank[to]) - (rank[from] == null ? 0 : rank[from]);
+    const d = Object.assign({ from, to, label: label || '', a, b }, o || {});
+    if (H_MODE) {
+      if (dr === 1)       { d.sa = 'right';  d.sb = 'left';  }
+      else if (dr === -1) { d.sa = 'left';   d.sb = 'right'; }
+      else if (dr === 0)  { const dn = b.y >= a.y; d.sa = dn ? 'bottom' : 'top'; d.sb = dn ? 'top' : 'bottom'; }
+      else {                                                         // skips ranks -> gutter
+        const fwd = dr > 0; d.sa = fwd ? 'right' : 'left'; d.sb = fwd ? 'left' : 'right';
+        const midY = (a.y + b.y) / 2 + H / 2;                         // lean to the nearer side
+        const useTop = (midY - minY) <= (maxY - midY);
+        d.gutterY = useTop ? (minY - GUT - (gutN.T++) * 12) : (maxY + GUT + (gutN.B++) * 12);
+      }
+    } else {
+      if (dr === 1)       { d.sa = 'bottom'; d.sb = 'top';   }
+      else if (dr === -1) { d.sa = 'top';    d.sb = 'bottom'; }
+      else if (dr === 0)  { const rt = b.x >= a.x; d.sa = rt ? 'right' : 'left'; d.sb = rt ? 'left' : 'right'; }
+      else {
+        const fwd = dr > 0; d.sa = fwd ? 'bottom' : 'top'; d.sb = fwd ? 'top' : 'bottom';
+        const midX = (a.x + b.x) / 2 + W / 2;                         // lean to the nearer side
+        const useLeft = (midX - minX) <= (maxX - midX);
+        d.gutterX = useLeft ? (minX - GUT - (gutN.L++) * 12) : (maxX + GUT + (gutN.R++) * 12);
+      }
+    }
+    drawn.push(d);
+  }
+  addEdge('_task', tree.entry, '', { onp: pi.hasRun });
+  for (const e of edges) {
+    const onp = pi.edges.has(e.from + '>' + e.to), fail = onp && e.to === pi.failNode;
+    addEdge(e.from, e.to, e.label, { warn: !!e.gate, onp, fail });
+  }
+  const hasOut = new Set(edges.map(e => e.from));
+  for (const id of Object.keys(pos)) if (!hasOut.has(id)) addEdge(id, '_result', '', { onp: pi.edges.has(id + '>_result') });
+  addEdge('_result', '_eval', '', { onp: pi.edges.has('_result>_eval') });
+  addEdge('_eval', '_shape', '', { onp: pi.edges.has('_eval>_shape') });
+
+  const slotMap = {};
+  for (const d of drawn) {
+    (slotMap[d.from + '|' + d.sa] = slotMap[d.from + '|' + d.sa] || []).push({ d, end: 'a' });
+    (slotMap[d.to   + '|' + d.sb] = slotMap[d.to   + '|' + d.sb] || []).push({ d, end: 'b' });
+  }
+  for (const [key, arr] of Object.entries(slotMap)) {
+    const horiz = key.endsWith('|top') || key.endsWith('|bottom');  // slot varies in x
+    arr.sort((p, q) => {                                            // sort by the far
+      const op = p.end === 'a' ? p.d.b : p.d.a;                     // endpoint so the
+      const oq = q.end === 'a' ? q.d.b : q.d.a;                     // lines don't cross
+      return horiz ? op.x - oq.x : op.y - oq.y;
+    });
+    arr.forEach((it, i) => {
+      const t = (i + 1) / (arr.length + 1);
+      if (it.end === 'a') it.d.ta = t; else it.d.tb = t;
+    });
+  }
+
+  function edgePath(d) {
+    const t1 = d.ta == null ? 0.5 : d.ta, t2 = d.tb == null ? 0.5 : d.tb;
+    const p1 = anchorPt(d.a, d.sa, t1), p2 = anchorPt(d.b, d.sb, t2);
+    let c1, c2;
+    if (d.gutterX != null) {          // vertical layout: leave via top/bottom, bow to a side gutter
+      const q = (p2.y - p1.y) * 0.15;
+      c1 = { x: d.gutterX, y: p1.y + q }; c2 = { x: d.gutterX, y: p2.y - q };
+    } else if (d.gutterY != null) {   // horizontal layout: leave via left/right, bow to a top/bottom gutter
+      const q = (p2.x - p1.x) * 0.15;
+      c1 = { x: p1.x + q, y: d.gutterY }; c2 = { x: p2.x - q, y: d.gutterY };
+    } else {
+      const n1 = sideNormal(d.sa), n2 = sideNormal(d.sb);
+      const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y), k = Math.min(90, Math.max(26, dist * 0.4));
+      c1 = { x: p1.x + n1.x * k, y: p1.y + n1.y * k };
+      c2 = { x: p2.x + n2.x * k, y: p2.y + n2.y * k };
+    }
+    d._mid = {
+      x: 0.125 * p1.x + 0.375 * c1.x + 0.375 * c2.x + 0.125 * p2.x,
+      y: 0.125 * p1.y + 0.375 * c1.y + 0.375 * c2.y + 0.125 * p2.y,
+    };
+    const stroke = d.fail ? '#ef4444' : (d.onp ? '#3b82f6' : (d.warn ? '#f59e0b' : '#cdd2db'));
+    const w = (d.onp || d.fail) ? 2.2 : 1.5;
+    const dash = (d.warn && !d.onp && !d.fail) ? 'stroke-dasharray="5,4"' : '';
+    const marker = `marker-end="url(#${d.fail ? 'arrR' : (d.onp ? 'arrB' : (d.warn ? 'arrW' : 'arr'))})"`;
+    return `<path d="M${p1.x},${p1.y} C${c1.x},${c1.y} ${c2.x},${c2.y} ${p2.x},${p2.y}" fill="none" stroke="${stroke}" stroke-width="${w}" ${dash} ${marker}/>`;
+  }
+  function edgeLabel(d) {
+    if (!d.label || !d._mid) return '';
+    const x = d._mid.x, y = d._mid.y, w = d.label.length * 6.2 + 12;
+    return `<rect x="${x - w / 2}" y="${y - 8}" width="${w}" height="16" fill="#ffffff" stroke="${d.warn ? '#f6d99a' : '#e7e9ee'}"/>` +
+           `<text x="${x}" y="${y + 3.5}" fill="${d.warn ? '#c77c0a' : '#7b8494'}" text-anchor="middle" font-size="10">${esc(d.label)}</text>`;
   }
   function card(x, y, title, sub, color, sel, onp, rounded, status) {
     let stroke = '#e7e9ee', fill = '#ffffff', sw = 1.2;
@@ -509,21 +1067,9 @@ function renderGraph() {
       <text x="${x + 34}" y="${y + H / 2 + 12}" fill="#9aa1ad" font-size="10">${esc(sub)}</text>${badge}`;
   }
 
-  // Task input node feeding the entry
-  svg += edgePath(taskNode, entryP, false, pi.hasRun, false);
-  svg += `<g class="gnode" data-node="_task">` + card(taskNode.x, taskNode.y, taskNode.label, taskNode.sub, taskNode.color, selectedNode === '_task', pi.hasRun, true, null) + `</g>`;
-
-  // edges
-  for (const e of edges) {
-    const a = pos[e.from], b = pos[e.to]; if (!a || !b) continue;
-    const onp = pi.edges.has(e.from + '>' + e.to), fail = onp && e.to === pi.failNode;
-    svg += edgePath(a, b, !!e.gate, onp, fail);
-  }
-  for (const e of edges) { const a = pos[e.from], b = pos[e.to]; if (a && b) svg += edgeLabel(a, b, e.label, !!e.gate); }
-  const hasOut = new Set(edges.map(e => e.from));
-  for (const [id, p] of Object.entries(pos)) if (!hasOut.has(id)) svg += edgePath(p, stations[0], false, pi.edges.has(id + '>_result'), false);
-  // result -> evaluate -> improve (along the flow direction)
-  for (let i = 0; i < 2; i++) svg += edgePath(stations[i], stations[i + 1], false, pi.edges.has(stations[i].id + '>' + stations[i + 1].id), false);
+  // edges first, then labels (so labels sit above every line)
+  for (const d of drawn) svg += edgePath(d);
+  for (const d of drawn) svg += edgeLabel(d);
   // feedback loop: improve -> entry
   const sh = stations[2];
   if (H_MODE) {
@@ -537,6 +1083,8 @@ function renderGraph() {
     svg += `<text x="${lx + 5}" y="${my}" fill="#8b5cf6" text-anchor="middle" font-size="10" transform="rotate(-90 ${lx + 5} ${my})">improves the workflow &#8635;</text>`;
   }
 
+  // Task input node feeding the entry
+  svg += `<g class="gnode" data-node="_task">` + card(taskNode.x, taskNode.y, taskNode.label, taskNode.sub, taskNode.color, selectedNode === '_task', pi.hasRun, true, null) + `</g>`;
   // nodes — mark the node where the run crashed in red
   for (const [id, p] of Object.entries(pos)) {
     const node = tree.nodes[id];
@@ -623,6 +1171,17 @@ window.addEventListener('mouseup', () => { panning = false; const svg = document
 function fmt(v) { return typeof v === 'string' ? v : JSON.stringify(v, null, 1); }
 function plainInstr(v) { return typeof v === 'string' ? v : (v && v.main_question ? v.main_question : fmt(v)); }
 function taskMeta() { return (STATE.tasks || []).find(t => t.id === STATE.task) || {}; }
+// a port shown as a card: name + type badge + a one-line description (+ metric for outputs)
+function portCardHTML(p) {
+  const opt = (p.required === false) ? ' · optional' : '';
+  const metric = p.metric ? `<div class="kv" style="color:var(--faint)">good = ${esc(p.metric)}</div>` : '';
+  return `<div class="qcard"><span class="qname">${esc(p.name)}</span><span class="qtype">${esc(p.type)}${opt}</span>
+    <div class="kv">${esc(TYPE_DOC[p.type] || 'a value')}</div>${metric}</div>`;
+}
+function portRefHTML(name) {
+  const p = outPorts().find(x => x.name === name); const t = p ? p.type : null;
+  return `<div class="box"><b>${esc(name)}</b>${t ? ` <span class="qtype">${esc(t)}</span> — ${esc(TYPE_DOC[t] || '')}` : ''}</div>`;
+}
 
 function renderNodeInspector() {
   const el = document.getElementById('nodeDetail'), tree = shownTree;
@@ -663,7 +1222,13 @@ function nodeStatic(id, tree) {
     h += `<p class="hint">A System-2 generation step (an LLM call). Only this kind of node can produce new text.</p>`;
     h += `<div class="field"><div class="lbl">What it's told to do</div><div class="box">${esc(node.system || '(default assistant)')}</div></div>`;
     h += `<div class="field"><div class="lbl">Prompt</div><div class="box">${esc(node.prompt)}</div></div>`;
-    h += advanced({ system: node.system, prompt: node.prompt, output_key: node.output_key, next: node.next });
+    if (node.output_port) h += `<div class="field"><div class="lbl">Fills output port</div>${portRefHTML(node.output_port)}</div>`;
+    h += advanced({ system: node.system, prompt: node.prompt, output_key: node.output_key, output_port: node.output_port, next: node.next });
+  } else if (node.kind === 'tool') {
+    h += `<p class="hint">A tool step — runs a host operation (<b>${esc(node.tool)}</b>) the models can't do themselves.</p>`;
+    if (node.args) h += `<div class="field"><div class="lbl">Arguments</div><div class="box mono">${esc(fmt(node.args))}</div></div>`;
+    if (node.output_port) h += `<div class="field"><div class="lbl">Fills output port</div>${portRefHTML(node.output_port)}</div>`;
+    h += advanced({ tool: node.tool, args: node.args, output_key: node.output_key, output_port: node.output_port, next: node.next });
   } else {
     h += `<p class="hint">A code step (written by S2). Runs deterministically — no model call.</p>`;
     h += `<div class="field"><div class="lbl">Code</div><div class="box mono">${esc(node.source)}</div></div>`;
@@ -676,17 +1241,22 @@ function nodeStatic(id, tree) {
 function stationInspector(id, tree) {
   const meta = taskMeta();
   if (id === '_task') {
+    const ins = inPorts();
     let h = `<div class="insp-head"><span class="insp-title">Task input</span><span class="chip" style="color:#64748b;background:#64748b1e">input</span></div>`;
-    h += `<p class="hint">Every loop feeds in a new, different instance of the same kind of task.</p>`;
-    h += `<div class="field"><div class="lbl">Input format</div><div class="box">${esc(meta.description || (tree.task && tree.task.kind) || 'Free-form text describing one task instance.')}</div></div>`;
+    h += `<p class="hint">Every loop feeds in one bundle of inputs — a new instance of the same kind of task.</p>`;
+    if (ins.length) h += `<div class="field"><div class="lbl">Input ports (${ins.length})</div>${ins.map(portCardHTML).join('')}</div>`;
+    else h += `<div class="field"><div class="lbl">Input format</div><div class="box">${esc(meta.description || 'Free-form text.')}</div></div>`;
+    if (meta.description) h += `<div class="field"><div class="lbl">What the task is</div><div class="box">${esc(meta.description)}</div></div>`;
     const samples = (tree.task && tree.task.sample_inputs) || [];
-    if (samples.length) h += `<div class="field"><div class="lbl">Example inputs</div><div class="box">${esc(samples.slice(0, 4).map((s, i) => (i + 1) + '. ' + s).join('\n'))}</div></div>`;
+    if (samples.length) h += `<div class="field"><div class="lbl">Example inputs</div><div class="box">${esc(samples.slice(0, 4).map((s, i) => (i + 1) + '. ' + (typeof s === 'string' ? s : JSON.stringify(s))).join('\n'))}</div></div>`;
     return h;
   }
   if (id === '_result') {
+    const outs = outPorts();
     let h = `<div class="insp-head"><span class="insp-title">Result</span><span class="chip" style="color:#64748b;background:#64748b1e">output</span></div>`;
-    h += `<p class="hint">The final deliverable the workflow produces on every loop.</p>`;
-    h += `<div class="field"><div class="lbl">Output format</div><div class="box">${esc(meta.expected_output || 'As defined by the task.')}</div></div>`;
+    h += `<p class="hint">The deliverable the workflow fills every loop — one value per output port.</p>`;
+    if (outs.length) h += `<div class="field"><div class="lbl">Output ports (${outs.length})</div>${outs.map(portCardHTML).join('')}</div>`;
+    else h += `<div class="field"><div class="lbl">Output format</div><div class="box">As defined by the task.</div></div>`;
     return h;
   }
   if (id === '_eval') {
@@ -716,8 +1286,8 @@ function runSection(id, tree) {
   if (!selectedRun) return '';
   const run = selectedRun, loopNo = STATE.runs.indexOf(run) + 1;
   const wrap = inner => `<div class="field runsec"><div class="lbl" style="color:var(--accent)">In loop #${loopNo}${run.evaluation.passed ? '' : ' · failed'}</div>${inner}</div>`;
-  if (id === '_task') return wrap(`<div class="box">${esc(run.input)}</div>`);
-  if (id === '_result') return wrap(`<div class="box">${esc(String(run.result || '(none produced)'))}</div>`);
+  if (id === '_task') return wrap(`<div class="box">${esc(inputsText(run))}</div>`);
+  if (id === '_result') return wrap(`<div class="box mono">${outputsHTML(run)}</div>`);
   if (id === '_eval') return wrap(`<div class="box">${run.evaluation.passed ? '✔ passed' : '✘ failed'}${evalReasons(run.evaluation)}</div>`);
   if (id === '_shape') return wrap(run.shaping
     ? `<div class="box">${run.shaping.shaped ? '✎ edited → ' + esc(run.shaping.new_version) : '— kept unchanged'}<br><span style="color:var(--dim)">${esc(run.shaping.reason || '')}</span></div>`
@@ -782,7 +1352,7 @@ function runListHTML() {
   return '<div class="runlist">' + [...STATE.runs].reverse().slice(0, 60).map(run => {
     const n = STATE.runs.indexOf(run) + 1, passed = run.evaluation.passed;
     return `<div class="runitem" onclick="selectRunByIndex(${n - 1})">
-      <span class="num">${n}</span><span class="txt" title="${esc(run.input)}">${esc(run.input)}</span>
+      <span class="num">${n}</span><span class="txt" title="${esc(inputsText(run))}">${esc(inputsText(run))}</span>
       <span class="tags"><span class="pill ${passed ? 'ok' : 'bad'}">${passed ? 'pass' : 'fail'}</span>
       ${run.escalated ? '<span class="pill warn">S2</span>' : ''}
       ${run.shaping && run.shaping.shaped ? '<span class="pill dim" title="workflow edited">✎</span>' : ''}</span></div>`;
@@ -796,8 +1366,8 @@ function loopDetailHTML(run) {
   let h = `<div style="display:flex;align-items:center;gap:9px;margin-bottom:4px">
     <span class="pill ${passed ? 'ok' : 'bad'}" style="font-size:.74rem;padding:3px 12px">${passed ? '✔ PASS' : '✘ FAIL'}</span>
     <span class="hint">${run.escalated ? 'used S2' : 'stayed on S1'}</span></div>`;
-  h += `<div class="field" style="margin-top:8px"><div class="lbl">Input</div><div class="box">${esc(run.input)}</div></div>`;
-  h += `<div class="field"><div class="lbl">Result</div><div class="box mono">${esc(run.result == null ? '(none produced)' : fmt(run.result))}</div></div>`;
+  h += `<div class="field" style="margin-top:8px"><div class="lbl">Input</div><div class="box">${esc(inputsText(run))}</div></div>`;
+  h += `<div class="field"><div class="lbl">Result</div><div class="box mono">${outputsHTML(run)}</div></div>`;
   if (run.error) h += `<div class="field"><div class="lbl" style="color:var(--bad)">Failed at “${esc(niceName(failNode || '?'))}”</div><div class="box" style="border-color:#f6caca;background:#fef2f2">${esc(run.error)}</div></div>`;
   else if (!passed) h += `<div class="field"><div class="lbl" style="color:var(--bad)">Why it failed</div><div class="box" style="border-color:#f6caca;background:#fef2f2">Result produced but the evaluation rejected it.${evalReasons(run.evaluation)}</div></div>`;
   else h += `<div class="field"><div class="lbl">Verdict</div><div class="box">✔ passed${evalReasons(run.evaluation)}</div></div>`;
@@ -817,36 +1387,59 @@ function loopDetailHTML(run) {
 /* ---------------------------- actions + progress ---------------------------- */
 function setBusy(on) {
   busy = on;
-  ['runBtn', 'streamBtn', 'shapeBtn'].forEach(id => document.getElementById(id).disabled = on);
-  document.getElementById('progWrap').hidden = !on;
+  const g = id => document.getElementById(id);
+  if (g('runBtn')) g('runBtn').disabled = on;
+  if (g('shapeBtn')) g('shapeBtn').disabled = on;
+  g('progWrap').hidden = !on;
 }
 function setProgress(done, total, label) {
   document.getElementById('pbar').style.width = total ? Math.round(done / total * 100) + '%' : '0%';
   document.getElementById('plabel').textContent = label;
 }
 async function runBatch() {
+  if (feedMode === 'bundle') return runBundleOnce();
   const inputs = document.getElementById('input').value.split('\n').map(s => s.trim()).filter(Boolean);
   if (!inputs.length) { alert('Type at least one task input (one per line).'); return; }
   await runInputs(inputs);
 }
-async function runStream() {
+// Bundle mode: assemble one value per input port and run exactly one loop.
+async function runBundleOnce() {
   if (busy) return;
-  setBusy(true); setProgress(0, 1, 'Generating new task instances…');
+  const bundle = {}, vals = {};
+  document.querySelectorAll('#feedForm .feed-in').forEach(el => vals[el.dataset.port] = el.value.trim());
+  for (const p of inPorts()) {
+    if (ASSET_TYPES.includes(p.type)) {
+      const f = feedFiles[p.name];
+      if (!f) { alert(`Choose a file for “${p.name}” (${p.type}).`); return; }
+      bundle[p.name] = f.asset_id;
+    } else if (p.type === 'json') {
+      if (!vals[p.name]) { alert(`Enter JSON for “${p.name}”.`); return; }
+      try { bundle[p.name] = JSON.parse(vals[p.name]); }
+      catch (e) { alert(`“${p.name}” is not valid JSON: ${e.message}`); return; }
+    } else {
+      if (!vals[p.name]) { alert(`Enter a value for “${p.name}”.`); return; }
+      bundle[p.name] = vals[p.name];
+    }
+  }
+  closeFeed();
+  setBusy(true); setProgress(0, 1, 'Running one loop…'); selectedRun = null;
   try {
-    const r = await fetch('/api/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ task: currentTask, count: +document.getElementById('streamN').value }) });
+    const r = await fetch('/api/run', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ task: currentTask, bundle }) });
     const data = await r.json();
     if (data.error) { alert(data.error); return; }
-    await runInputs(data.inputs, true);
+    await refresh();
+    const last = STATE.runs[STATE.runs.length - 1]; if (last && last.shaping) showShaping(last.shaping);
+    setProgress(1, 1, 'Done'); setTimeout(() => { if (!busy) document.getElementById('progWrap').hidden = true; }, 1400);
   } finally { setBusy(false); }
 }
 async function runInputs(inputs, keepBusy) {
   if (busy && !keepBusy) return;
-  if (!keepBusy) setBusy(true);
+  if (!keepBusy) { closeFeed(); setBusy(true); }
   selectedRun = null;
   try {
     for (let i = 0; i < inputs.length; i++) {
       setProgress(i, inputs.length, `Loop ${i + 1} of ${inputs.length}: ${trunc(inputs[i], 48)}`);
-      const r = await fetch('/api/run', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ task: currentTask, inputs: [inputs[i]] }) });
+      const r = await fetch('/api/run', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ task: currentTask, bundle: { [primaryInputName()]: inputs[i] } }) });
       const data = await r.json();
       if (data.error) { alert(data.error); break; }
       await refresh();
@@ -877,29 +1470,121 @@ function showShaping(s) {
 }
 
 /* ---------------------------- wizard ---------------------------- */
-function openWizard() { document.getElementById('wizard').hidden = false; }
+// wizard port state (var so inline on* handlers in classic-script global scope can see it)
+var wIn = [], wOut = [];
+var WZ_INTYPES = ['text', 'json', 'table', 'document', 'image', 'audio'];
+var WZ_OUTTYPES = ['text', 'json', 'table_enrich', 'document', 'image', 'audio', 'action'];
+
+function openWizard() {
+  wIn = [{ name: 'input', type: 'text' }];
+  wOut = [{ name: 'result', type: 'json', metric: '' }];
+  document.getElementById('wName').value = '';
+  document.getElementById('wDesc').value = '';
+  document.getElementById('wExamples').value = '';
+  document.getElementById('wStatus').textContent = '';
+  wizRender();
+  document.getElementById('wizard').hidden = false;
+}
 function closeWizard() { document.getElementById('wizard').hidden = true; document.getElementById('wStatus').textContent = ''; }
 document.getElementById('wizard').addEventListener('click', e => { if (e.target === e.currentTarget) closeWizard(); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeWizard(); });
+document.getElementById('feedModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeFeed(); });
+document.getElementById('editModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeEdit(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeWizard(); closeFeed(); closeEdit(); } });
+
+function wizAddInput() { wIn.push({ name: '', type: 'text' }); wizRender(); }
+function wizAddOutput() { wOut.push({ name: '', type: 'json', metric: '' }); wizRender(); }
+function opts(list, sel) { return list.map(t => `<option ${t === sel ? 'selected' : ''}>${t}</option>`).join(''); }
+
+function wizRender() {
+  document.getElementById('wInputs').innerHTML = wIn.map((p, i) => `<div class="pe-row in">
+    <input value="${esc(p.name)}" placeholder="port name" oninput="wIn[${i}].name=this.value;wizStatus()">
+    <select onchange="wIn[${i}].type=this.value;wizStatus()">${opts(WZ_INTYPES, p.type)}</select>
+    <button class="pe-x" title="remove" onclick="wIn.splice(${i},1);wizRender()">&times;</button></div>`).join('');
+  document.getElementById('wOutputs').innerHTML = wOut.map((p, i) => `<div class="pe-row out">
+    <input value="${esc(p.name)}" placeholder="port name" oninput="wOut[${i}].name=this.value;wizStatus()">
+    <select onchange="wOut[${i}].type=this.value;wizStatus()">${opts(WZ_OUTTYPES, p.type)}</select>
+    <input value="${esc(p.metric || '')}" placeholder="what makes it good (optional)" oninput="wOut[${i}].metric=this.value">
+    <button class="pe-x" title="remove" onclick="wOut.splice(${i},1);wizRender()">&times;</button></div>`).join('');
+  wizStatus();
+}
+function wizStatus() {
+  const named = a => a.filter(p => p.name.trim());
+  const dup = a => { const n = named(a).map(p => p.name.trim()); return new Set(n).size !== n.length; };
+  const inOk = named(wIn).length >= 1 && !dup(wIn), inErr = dup(wIn);
+  const treeOk = document.getElementById('wDesc').value.trim().length > 0;
+  const outOk = named(wOut).length >= 1 && !dup(wOut), outErr = dup(wOut);
+  setIco('wIcoIn', inOk, inErr); setIco('wIcoTree', treeOk, false); setIco('wIcoOut', outOk, outErr);
+  document.getElementById('wCreate').disabled = !(inOk && treeOk && outOk);
+}
+function setIco(id, ok, err) {
+  const el = document.getElementById(id); if (!el) return;
+  el.classList.toggle('ok', ok && !err); el.classList.toggle('err', err);
+}
+
 async function createTask() {
   const name = document.getElementById('wName').value.trim();
   const description = document.getElementById('wDesc').value.trim();
-  const output = document.getElementById('wOut').value.trim();
-  if (!name || !description || !output) { document.getElementById('wStatus').textContent = 'Please fill in the task name and questions 1 and 2.'; return; }
+  const inputs = wIn.filter(p => p.name.trim()).map(p => ({ name: p.name.trim(), type: p.type }));
+  const outputs = wOut.filter(p => p.name.trim()).map(p => ({ name: p.name.trim(), type: p.type, metric: p.metric || '' }));
+  if (!name || !description || !inputs.length || !outputs.length) {
+    document.getElementById('wStatus').textContent = 'Need a task name, a Tree description, and at least one input and one output port.'; return;
+  }
   const btn = document.getElementById('wCreate'); btn.disabled = true;
   document.getElementById('wStatus').innerHTML = '<span class="spin dark"></span> S2 is designing your workflow… (up to a minute)';
   try {
     const r = await fetch('/api/tasks', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, description, output, metric: document.getElementById('wMetric').value.trim(),
+      body: JSON.stringify({ name, description, inputs, outputs,
         examples: document.getElementById('wExamples').value.split('\n').map(s => s.trim()).filter(Boolean) }) });
     const data = await r.json();
     if (data.error) { document.getElementById('wStatus').textContent = data.error; return; }
-    ['wName', 'wDesc', 'wOut', 'wMetric', 'wExamples'].forEach(id => document.getElementById(id).value = '');
-    closeWizard(); switchTask(data.task);
+    closeWizard(); showView('dashboard'); switchTask(data.task);
   } finally { btn.disabled = false; }
 }
 
 /* ---------------------------- util ---------------------------- */
+// multi-port bridges: this UI drives the first input port and shows all output ports.
+function inPorts()  { return (STATE && STATE.contract && STATE.contract.inputs)  || []; }
+function outPorts() { return (STATE && STATE.contract && STATE.contract.outputs) || []; }
+function primaryInputName() { const ins = inPorts(); return (ins[0] && ins[0].name) || 'input'; }
+function inputsText(run) {
+  const prev = run.inputs || {}, raw = run.raw_inputs || {};
+  const types = {}; inPorts().forEach(p => types[p.name] = p.type);
+  const keys = Object.keys(prev).length ? Object.keys(prev) : Object.keys(raw);
+  const parts = keys.map(k => {
+    const label = types[k] ? `${k} (${types[k]})` : k;
+    return `${label}: ${inputValueText(types[k], raw[k], prev[k])}`;
+  });
+  return parts.join('  ·  ') || '(no input)';
+}
+// render one input port's value by type — file ports show their filename, not a JSON blob
+function inputValueText(type, raw, prev) {
+  const a = raw && raw.asset;
+  if (type === 'document') return a ? a.name : (raw && raw.text ? trunc(raw.text, 80) : '(document)');
+  if (type === 'table') {
+    const nr = raw && raw.rows ? raw.rows.length : null, nc = raw && raw.columns ? raw.columns.length : null;
+    const dim = (nr != null && nc != null) ? `${nr} rows × ${nc} cols` : 'table';
+    return a ? `${a.name} · ${dim}` : dim;
+  }
+  if (type === 'image') return a ? a.name : '(image)';
+  if (type === 'audio') return a ? a.name : '(audio)';
+  let v = (raw !== undefined) ? raw : prev;             // text/json: prefer raw for clean JSON
+  if (typeof v !== 'string') v = JSON.stringify(v);
+  return trunc(v, 240);
+}
+function outputsHTML(run) {
+  const outs = run.outputs || {}; const ev = (run.evaluation && run.evaluation.outputs) || {};
+  const types = {}; outPorts().forEach(p => types[p.name] = p.type);
+  const keys = Object.keys(outs);
+  if (!keys.length) return '(none produced)';
+  return keys.map(port => {
+    const mat = outs[port]; const ok = (ev[port] || {}).passed; const t = types[port];
+    const head = `<b>${esc(port)}</b>${t ? ` <span class="qtype">${esc(t)}</span>` : ''}${ok === undefined ? '' : ok ? ' ✓' : ' ✗'} `;
+    if (mat && mat.asset) return head + `<a href="/api/download?asset=${mat.asset.asset_id}" download>⬇ ${esc(mat.asset.name)}</a>`;
+    if (mat && mat.error) return head + `<span style="color:#dc3d3d">${esc(mat.error)}</span>`;
+    const v = (mat && mat.value !== undefined) ? mat.value : mat;
+    return head + esc(fmt(v));
+  }).join('<br>');
+}
 function trunc(s, n) { s = String(s); return s.length > n ? s.slice(0, n - 1) + '…' : s; }
 function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 
