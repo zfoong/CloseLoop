@@ -1,6 +1,6 @@
 # CloseLoop
 
-**A self-improving task system. You define the input, the output, and how to score it. The system builds the workflow, runs it, grades itself, and rewrites its own workflow to do better next time.**
+**A self-improving workflow system utilizing the concept of system 1 and system 2 thinking. You define the input, the output, and how to score it. CloseLoop builds the workflow, runs it, grades itself, and rewrites its own workflow to do better next time.**
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-3776AB.svg)](https://www.python.org/)
 [![Dependencies: none](https://img.shields.io/badge/python%20deps-stdlib%20only-1f883d.svg)](#-install)
