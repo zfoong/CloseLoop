@@ -1,87 +1,89 @@
 # CloseLoop
 
-A prototype of a **self-improving decision system** that loops between:
+**A self-improving task system. You define the input, the output, and how to score it. The system builds the workflow, runs it, grades itself, and rewrites its own workflow to do better next time.**
 
-- **System 1 (S1)** — [TypeSafe Jev](https://docs.typesafe.ai), a fast/cheap decision model (Noul / Choice / Score primitives, calibrated probabilities) — the main runtime decision maker.
-- **System 2 (S2)** — an OpenAI LLM — the generator, escalation target, and **shaper** that edits the decision/action tree between loops.
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-3776AB.svg)](https://www.python.org/)
+[![Dependencies: none](https://img.shields.io/badge/python%20deps-stdlib%20only-1f883d.svg)](#-install)
+[![Node 23+](https://img.shields.io/badge/node-23%2B%20(code%20nodes)-339933.svg)](https://nodejs.org/)
+[![Status: prototype](https://img.shields.io/badge/status-prototype-orange.svg)](REQUIREMENT.md)
 
-Humans define only the **input**, the **expected output**, and the **metric**. The system grows the workflow itself and converges when S2 stops needing to shape it. See [REQUIREMENT.md](REQUIREMENT.md) for the full spec and [RESEARCH.md](RESEARCH.md) for the Jev deep research.
+<sub>Two models in a loop: a fast one that decides, a slow one that builds and improves.</sub>
 
-## Quick start
+---
 
-Requires Python ≥ 3.10. **No dependencies** (stdlib only).
+CloseLoop runs one kind of task over and over, and gets better at it each time. You write the task in plain language and pick what goes in and what comes out. The system designs a workflow, runs each new input through it, scores the result, and edits the workflow when the score says it should. The full spec is in [REQUIREMENT.md](REQUIREMENT.md); what is actually built and verified is in [CHECKLIST.md](CHECKLIST.md).
 
-1. Put your API keys in [config.json](config.json) (copied from `config.example.json`, gitignored). **config.json is the source of truth**; the `TYPESAFE_API_KEY` / `OPENAI_API_KEY` environment variables are used only as a fallback when the file has no real key.
-2. Run:
+## 🧠 The simple version
 
-   ```
-   python run.py
-   ```
+Think about learning to drive. At first you think hard about every action: mirror, signal, clutch, gear. That is slow and deliberate. After enough practice most of it becomes automatic reflex, and you only stop to think when something unusual happens.
 
-3. Open **http://127.0.0.1:8642**.
+CloseLoop works the same way, with two models playing the two parts:
 
-**Create your own task:** click **+ New task** and answer three plain-language questions — what the system should do, what a good result looks like, and (optionally) how to judge it — plus optional example inputs. S2 designs the initial decision/action tree for you (a generic template is used if S2 is unavailable); from then on the loop runs and improves it. Each task has its own tree versions, run history, and metrics — switch tasks with the dropdown in the header.
+| | Who | Speed | Job |
+|---|---|---|---|
+| **S1** | TypeSafe Jev (`jev.py`) | fast, cheap | The reflex. Judges, classifies, routes, and validates. It never writes text. |
+| **S2** | an OpenAI LLM (`llm.py`) | slow, costly | The thinker. Writes content and code, handles the hard cases S1 escalates, and rewrites the workflow after seeing how recent runs went. |
 
-**Run loops:** either:
-   - paste several task inputs (**one per line**) and click **Run batch** — each line becomes one loop, or
-   - click **Auto-stream N** — the system generates N *new, distinct* same-kind task instances and loops each one.
+The "reflexes" are written down as a **tree**: a workflow that S1 runs and S2 edits. Early on, S2 does most of the work. As the tree improves, S1 handles more of it alone and S2 steps in less. That is the whole point: the system converges toward running itself.
 
-**Every loop processes a different task input** (same *kind* of task, never the same instance — REQUIREMENT.md R-3.0). Shaping is judged across the input distribution, not against one memorized example. When S2 is live it synthesizes realistic new instances for auto-stream; in mock mode the sample pool is cycled with detail variation.
-
-**Mock mode:** any backend without a working key (missing, invalid, or out of credits) automatically falls back to a deterministic mock so the whole loop is demoable offline. The header badges show `LIVE`/`MOCK` per system (hover a MOCK badge for the reason). The mock Jev is a crude keyword classifier; the mock LLM returns canned replies; the mock shaper never edits.
-
-## What one loop does
+## 🔁 What one loop does
 
 ```
-task stream (a DIFFERENT input every loop)
+a new input (different every loop, same kind of task)
    │
    ▼
-decision/action tree (versioned JSON in data/tree_versions/)
-   ├─ jev nodes ── S1 judgements: route / gate / validate (one batched call)
-   │     └─ low confidence? ──► escalate to S2 node          (R-3.2)
-   ├─ llm nodes ── S2 generation steps (Jev can't generate)  (R-2.3)
-   └─ code nodes ─ S2-authored executable operations         (R-2.2)
+the tree
+   ├─ S1 decides: route, gate, validate        (escalates hard cases to S2)
+   ├─ S2 writes: content and code
+   └─ tools: render a doc, a chart, run code, call an API
    │
    ▼
-result ──► evaluation: code metric (S2-authored) + S1 Jev battery   (R-4.1)
+the output  ──►  scored against your metric
    │
    ▼
-shaping: S2 reads tree + recent runs ──► edits tree (new version) or declines  (R-5.1)
+S2 reviews recent runs  ──►  rewrites the tree, or leaves it alone
 ```
 
-Every run is logged to `data/runs.jsonl` with the full trace (answers, probabilities, confidences, gates fired, latencies). The UI shows convergence indicators: pass rate, escalation rate, shaping-edit count (R-6.3).
+## ✨ Features
 
-## Layout
+- **You define the task, the system builds the workflow.** Describe it in plain language, pick the input and output, and S2 drafts the first workflow for you.
+- **More than one input or output.** A task can take several inputs and produce several outputs, each with its own type.
+- **Real files in and out.** Text, JSON, tables (CSV / Excel), and documents (PDF / DOCX). Upload a file, download the result. Image and audio are wired in through OpenAI tools.
+- **It grades every result.** Each output is checked against your metric: a code check, a fast S1 check, and an optional deeper S2 review. The task passes only when every output passes.
+- **It improves itself.** After each run S2 looks at what happened and either rewrites the workflow or leaves it alone. Every edit is driven by real results, not guesses.
+- **Bad edits never go live.** Before any new workflow runs, it has to pass validation and a strict TypeScript type-check. A workflow that does not compile is rejected.
+- **Versioned and reversible.** Every edit is a new version with a reason. You can pin a version, roll back, or freeze a good run so future edits are not allowed to break it.
+- **You can watch it converge.** Pass rate, escalation rate, edit count, confidence, and cost, all shown live.
+- **A visual canvas.** Inputs on the left, the live tree in the middle, outputs on the right, plus run history and a node inspector. One self-contained HTML page.
+- **Live only, no setup tax.** The Python side is standard library only. Nothing to `pip install`.
 
-| Path | What |
-|---|---|
-| `closeloop/jev.py` | S1 client — `POST /v1/systemone`, retry/backoff, mock fallback |
-| `closeloop/llm.py` | S2 client — OpenAI chat completions, mock fallback |
-| `closeloop/tree.py` | Tree schema, structural validator, runtime (walks nodes, owns control flow) |
-| `closeloop/engine.py` | run → evaluate → shape loop; convergence metrics |
-| `closeloop/store.py` | Tree versions + append-only run records under `data/` |
-| `closeloop/server.py` | Zero-dependency HTTP server + JSON API |
-| `trees/seed.json` | Seed tree: customer-support demo (triage → draft → validate → finalize) |
-| `ui/index.html` | Single-page UI: **live system graph** (task stream → tree → result → evaluate → shape ↺), loop history, traces, metrics |
+## 📦 Install
 
-## Logging
+You need **Python 3.10+** (standard library only, nothing to install) and **Node 23+** to run code steps. `npm install` adds `tsc` for the type-check gate.
 
-Comprehensive leveled logs (DEBUG / INFO / WARNING / ERROR) via `closeloop/logsetup.py`. Two sinks:
-
-- **Console** at `console_level` (default INFO) — the readable operator view: loop start/end (pass/fail, path, escalation, duration), shaping decisions, S1/S2 call summaries with latency + tokens, user activity, warnings/errors.
-- **File** at `file_level` (default DEBUG) — `data/closeloop.log`, rotating (5 MB × 5). The comprehensive record: every Jev/LLM request and response preview, per-node steps, routing/gate decisions, per-check evaluation scores, TypeScript compile/exec, tree saves.
-
-Configure in [config.json](config.json):
-
-```json
-"logging": { "console_level": "INFO", "file_level": "DEBUG", "file": "data/closeloop.log" }
+```bash
+cp config.example.json config.json   # then put your Jev + OpenAI keys in it
+python run.py                         # serves the UI at http://127.0.0.1:8642
 ```
 
-Set `console_level` to `DEBUG` to see everything live, or `WARNING` for quiet operation. Loggers are namespaced `closeloop.<module>` (`closeloop.jev`, `closeloop.llm`, `closeloop.tree`, `closeloop.engine`, `closeloop.server`, `closeloop.store`, `closeloop.tscode`).
+`config.json` is the source of truth for keys and models. There is no mock mode: a missing key stops the server on purpose.
 
-## Prototype limitations (known, deliberate)
+## 🚀 Usage
 
-- Code nodes run via `exec` with a trimmed builtins dict — **not a real sandbox** (REQUIREMENT.md open question 2). Don't paste untrusted trees.
-- The shaper replaces the whole tree per edit; no diff-level review yet.
-- Single tree, single task type; no concurrency beyond a global lock.
-- Mock Jev confidence is a heuristic, not calibrated — treat mock-mode metrics as plumbing checks only.
+1. Click **New task**, describe what you want in plain language, and set the input and output. S2 drafts the workflow; adjust it and confirm.
+2. Give it an input (a text box, a JSON editor, or a file) and run. Or click **auto-stream** to have S2 make new, distinct inputs of the same kind and run a batch.
+3. Open any run to see its trace and scores, browse versions, roll back, or pin a run as a safety fixture.
+
+Every loop uses a different input, so a fix that only works on one memorized case does not count as an improvement.
+
+## ⚙️ How it works
+
+1. **S1 decides, S2 builds.** S1 only judges and routes with calibrated confidence. Anything that needs writing (content, code, the workflow itself) comes from S2. The loop is owned by code, not by a model.
+2. **Nothing risky ships unchecked.** The compile gate (validation plus a strict TypeScript type-check) is what makes an auto-written workflow safe to deploy.
+3. **Improvement is editing the workflow, not training a model.** S2 changes the steps between runs. Your input, output, and metric stay fixed. Only the internals move.
+
+## 🔒 Good to know
+
+- This is a research prototype. Code steps run on Node with a trimmed environment, not a hardened sandbox, so do not run workflows you do not trust.
+- Image and audio tools (vision, transcription, image generation, speech) are wired up but not yet run live.
+- `REQUIREMENT.md` and `CHECKLIST.md` are the source of truth. If anything above disagrees with them, they win.
