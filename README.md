@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="closeloop_banner.png" alt="CloseLoop banner" width="100%">
+</p>
+
 # CloseLoop
 
 **A self-improving workflow system utilizing the concept of system 1 and system 2 thinking. You define the input, the output, and how to score it. CloseLoop builds the workflow, runs it, grades itself, and rewrites its own workflow to do better next time.**
